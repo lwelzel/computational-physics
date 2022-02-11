@@ -271,3 +271,6 @@ fabric.properties
 *.npz
 *.h5
 *.pdf
+
+# idea
+.idea*
