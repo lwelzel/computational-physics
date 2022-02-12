@@ -59,7 +59,7 @@ class MetaClassParticle(object):
 
     @classmethod
     def setup_mic(cls):
-        cls.box = np.ones(shape=cls.n_dim)
+        cls.box = np.ones(shape=(cls.n_dim, 1))
         cls.box_r = 1 / cls.box
         cls.box2 = 0.5 * cls.box
         cls.box2_r = 1 / cls.box2
@@ -105,9 +105,9 @@ class Particle(MetaClassParticle):
 
         :param n_steps:
         :param n_dim:
-        :param initial_pos:
-        :param initial_vel:
-        :param initial_acc:
+        :param initial_pos: shape = (3, 1)
+        :param initial_vel: shape = (3, 1)
+        :param initial_acc: shape = (3, 1)
         :param kwargs:
         """
         # setup
@@ -115,7 +115,7 @@ class Particle(MetaClassParticle):
 
         # general backend
         self.n_steps = n_steps
-        shape = (self.n_steps, self.n_dim)
+        shape = (self.n_steps, self.n_dim, 1)
 
         # TODO: hash ID for each particle
 
@@ -134,7 +134,7 @@ class Particle(MetaClassParticle):
         # k keeps track of particles "outside" the box, if particles bound very quickly
         # (more than 127 boxes in a single tick) we are f-ed
         # or we can just replace it with a larger int (np.int128 is max I think)
-        self.k = np.full(shape=self.__class__.n_dim, fill_value=np.nan, dtype=np.int8)
+        self.k = np.full(shape=(self.__class__.n_dim, 1), fill_value=np.nan, dtype=np.int8)
 
         # below is if we use a set (add particles separately)
         # self.__class__.__instances__.add(self)
@@ -152,13 +152,9 @@ class Particle(MetaClassParticle):
         return dpos
 
     def get_distance_absoluteA1(self, other):
-        # np.linalg.norm(self.get_distance_vectorA1(other), ord=None)  # 2-norm is the eucl. dist. between 2 points
-        # ^ this is slower
         dpos = self.get_distance_vectorA1(other)
         # using the properties of the Einstein summation convention implementation in numpy, which is very fast
-        # but the code will need some rewriting for that
-        # np.sqrt(np.einsum('ij->i', dpos, dpos))
-        return np.linalg.norm(self.get_distance_vectorA1(other), ord=None)
+        return np.sqrt(np.einsum('ij,ij->j', dpos, dpos))
 
 
 
