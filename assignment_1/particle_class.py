@@ -191,6 +191,14 @@ class Particle(MetaClassParticle):
     internal_energy = particle_internal_energy
     sigma = particle_sigma
 
+    # MEDIUM PROPERTIES
+    # TODO: implement way to update
+    temperature = 0
+    energy = 0
+    pressure = 0
+    density = 0
+    surface_tension = 0
+
     def __init__(self, n_steps, n_dim,
                  initial_pos, initial_vel, initial_force,
                  **kwargs):
@@ -227,28 +235,19 @@ class Particle(MetaClassParticle):
         # TODO: those are just placeholders at this point.
         #  It probably will eventually make sense to also have those be np.arrays that track over the simulation.
         #  Also required for smart error tracking etc.
-        self.temperature = 0
-        self.energy = 0
-        self.pressure = 0
-        self.density = 0
-        self.surface_tension = 0
 
         # parameters for positions
         # k keeps track of particles "outside" the box, if particles bound very quickly
         # (more than 127 boxes in a single tick) we are f-ed
         # or we can just replace it with a larger int (np.int128 is max I think)
-        self.k = np.full(shape=(self.__class__.n_dim, 1), fill_value=0, dtype=np.int8)
+        self.k = np.full(shape=(self.__class__.n_dim, 1), fill_value=0, dtype=np.int64)
         # convenience difference vector for positions
         self.dpos = np.full(shape=(self.__class__.n_dim, 1), fill_value=0.)
 
-        # below is if we use a set (add particles separately)
-        # self.__class__.__instances__.add(self)
 
     def wrap_d_vector(self):
         self.k[:] = self.dpos[:] \
                     * self.__class__.box2_r  # this casts the result to int, finding in where the closest box is
-        # if (self.k >= 1).any():
-        #     print(self.dpos)
         self.dpos[:] = self.dpos[:] - self.k * self.__class__.box  # casting back to float must be explicit
 
 
@@ -261,12 +260,6 @@ class Particle(MetaClassParticle):
         """
         self.dpos[:] = other.pos[self.__class__.current_step] - self.pos[self.__class__.current_step]
         self.wrap_d_vector()
-        # if (self.k >= 1).any():
-        #     print(self.k)
-        #     print(self.__class__.box)
-        #     print(self.k * self.__class__.box)
-        #     print(self.dpos)
-        #     print()
 
     def get_distance_absoluteA1(self, other):
         self.get_distance_vectorA1(other)
@@ -287,6 +280,8 @@ class Particle(MetaClassParticle):
     def set_resulting_force(self):
         # TODO: can this masked array be defined before and not new at every step?
         #  If np.ma.array(arr, mask) stores a reference to arr instead of the thing itself that should work
+        # TODO: make an interpolant for this function so it does not need to be computed at every step
+        # TODO: equal an opposite reaction: compute forces just once
         for other in np.ma.array(self.__class__.__instances__, mask=self.mask).compressed():
             self.force[self.__class__.current_step] = self.force[self.__class__.current_step] + self.get_force(other)
 
@@ -298,7 +293,7 @@ class Particle(MetaClassParticle):
 
     def potential_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return 4 * self.__class__.internal_energy * ( np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6) )
+        return - 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def next_position(self):
         self.dpos[:] = self.vel[self.__class__.current_step] * self.__class__.timestep
@@ -327,19 +322,19 @@ class Particle(MetaClassParticle):
         cls.timestep *= np.sqrt(cls.internal_energy /
                                            (cls.particle_mass * np.power(cls.sigma, 2)))
 
+        cls.temperature *= Constants.bk / cls.internal_energy
+        cls.energy *= 1 / cls.internal_energy
+        cls.pressure *= np.power(cls.sigma, 3) / cls.internal_energy
+        cls.density *= np.power(cls.sigma, 3)
+        cls.surface_tension *= np.power(cls.sigma, 2) / cls.internal_energy
+
         # iterate over particles and normalize values
         for particle in cls.__instances__:
             particle.pos *= 1 / cls.sigma
             particle.vel *= np.sqrt(cls.internal_energy /
                                     (cls.particle_mass * np.power(cls.sigma, 2)))\
                             / cls.sigma
-
-            particle.temperature *= Constants.bk / cls.internal_energy
             particle.force *= cls.sigma / cls.internal_energy
-            particle.energy *= 1 / cls.internal_energy
-            particle.pressure *= np.power(cls.sigma, 3) / cls.internal_energy
-            particle.density *= np.power(cls.sigma, 3)
-            particle.surface_tension *= np.power(cls.sigma, 2) / cls.internal_energy
 
         cls.update_meta_class(timestep=cls.timestep,
                               box_length=cls.box_length)

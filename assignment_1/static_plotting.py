@@ -49,6 +49,7 @@ def plotly_3d_static(pos):
 def mpl_strict_2d_static(pos):
     assert isinstance(pos, np.ndarray), 'Do not accept anything but np.ndarrays'
     assert pos.shape[2] == 2, "This method is strictly for 2D problems at this point"
+
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True, subplot_kw={'aspect': 1},
                            # sharex=True, sharey=True,
@@ -57,10 +58,10 @@ def mpl_strict_2d_static(pos):
 
     # sizes of markers, last position is fat
     size = np.ones(len(pos[0]))
-    size[-1] = 5
-    size *= 4
+    size[-1] = 15
+    size *= 1
     # alpha
-    alpha = np.ones(len(pos[0])) * 0.8
+    alpha = np.ones(len(pos[0])) * 0.05
     alpha[-1] = 1
 
     # colors of markers, colors sample of plt colormaps
@@ -78,19 +79,19 @@ def mpl_strict_2d_static(pos):
                    s=size,
                    c=color,
                    alpha=alpha,
-                   label=f"P{i:03}"
+                   # label=f"P{i:03}"
                    )
 
 
 
     # AXIS TICK LABELS
-    max = 0.5 * np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
+    max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
     ax.set_xlim(-max, max)
     ax.set_ylim(-max, max)
     label_format = '{:.0f}'
     n_ticks = 5
-    ax.set_xlabel(r'$x^{*}$')
-    ax.set_ylabel(r'$y^{*}$')
+    ax.set_xlabel(r'$\frac{r_{x}}{\sigma}$ [-]')
+    ax.set_ylabel(r'$\frac{r_{y}}{\sigma}$ [-]')
 
     # x_labels = np.linspace(-800, 800, n_ticks)
     # x_ticks = (x_labels / au_pscale) + 100
@@ -100,7 +101,7 @@ def mpl_strict_2d_static(pos):
     # ax.set_yticks(x_ticks)
     # ax.set_yticklabels(x_labels)
 
-    rect = mpl.patches.Rectangle((-500, -500), 1000, 1000, linewidth=1,
+    rect = mpl.patches.Rectangle((-50, -50), 100, 100, linewidth=1,
                                  edgecolor='k', facecolor='none',
                                  label="Bounding MCI Box")
 

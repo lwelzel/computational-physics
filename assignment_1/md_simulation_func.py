@@ -35,6 +35,17 @@ def set_up_simulation(n_particles, n_dim, n_steps,
     # setup rng
     rng = np.random.default_rng()
     initial_particle_position = rng.uniform(low=-1, high=1, size=shape) * box_length / 2
+    initial_particle_position = np.array([
+        [[0.55],
+         [0.5]],
+        [[-0.5],
+         [0.49]],
+        [[-0.51],
+         [-0.51]],
+        [[0.502],
+         [-0.25]]
+    ]) * box_length / 2
+
     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
     initial_particle_force = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
 
@@ -77,9 +88,6 @@ def run_md_simulation():
         # print()
 
 
-    # print(np.array([ins.pos[:5] for ins in Argon.__instances__]))
-
-
 def save_particle_past(object_array, loc="", name="MD_simulation"):
     """
     Store particle positions like:
@@ -116,8 +124,8 @@ def save_particle_past(object_array, loc="", name="MD_simulation"):
 
     np.save(loc / name, storage_array)
 
-def main(n_particles=2, n_dim=2, n_steps=100,
-         timestep=1e-20, box_length=3.405e-7):
+def main(n_particles=4, n_dim=2, n_steps=5000,
+         timestep=1e-21, box_length=3.405e-8):
     """
     Main wrapper for the MD simulation
     :param n_particles:
