@@ -1,7 +1,8 @@
 import numpy as np
 from particle_class import Particle
+from constants_class import Constants
 
-class Argon(Particle, n_particles=None):
+class Argon(Particle):
     """
     Class to keep track of particles
     """
@@ -14,12 +15,22 @@ class Argon(Particle, n_particles=None):
     # ok stupid solution first, max number of particles = 10000
     # this also makes mp really impossible, oh well...
 
-    # particle properties
+    # PARTICLE PARAMETERS
     particle_name = "Argon_Particle"
-    particle_mass = 1 # kg # Argon Mass
+    particle_mass = 39.95 * 1.6605402e-27            # kg            # Argon Mass
+    particle_internal_energy = 119.8 * Constants.bk  # J or kg*m2/s2 # epsilon
+    particle_sigma = 3.405e-10                       # m             # ref scale (?)
+
+    # normalization
+    mass = particle_mass
+    internal_energy = particle_internal_energy
+    sigma = particle_sigma
+
+    # SIMULATION PARAMETERS
+    box_length = 1e-10
 
     def __init__(self, n_steps, n_dim,
-                 initial_pos, initial_vel, initial_acc,
+                 initial_pos, initial_vel, initial_force,
                  **kwargs):
         """
 
@@ -31,4 +42,5 @@ class Argon(Particle, n_particles=None):
         :param kwargs:
         """
         # setup
-        super(Argon, self).__init__(n_steps, n_dim, initial_pos, initial_vel, initial_acc)
+        super(Argon, self).__init__(n_steps, n_dim, initial_pos, initial_vel, initial_force, **kwargs)
+
