@@ -35,15 +35,28 @@ def set_up_simulation(n_particles, n_dim, n_steps,
     # setup rng
     rng = np.random.default_rng()
     initial_particle_position = rng.uniform(low=-1, high=1, size=shape) * box_length / 2
+    # initial_particle_position = np.array([
+    #     [[0.55],
+    #      [0.5]],
+    #     [[-0.5],
+    #      [0.49]],
+    #     [[-0.51],
+    #      [-0.51]],
+    #     [[0.502],
+    #      [-0.25]]
+    # ]) * box_length / 2
+
     initial_particle_position = np.array([
-        [[0.55],
+        [[0.5],
          [0.5]],
         [[-0.5],
-         [0.49]],
-        [[-0.51],
-         [-0.51]],
-        [[0.502],
-         [-0.25]]
+         [0.5]],
+        [[-0.5],
+         [-0.5]],
+        [[0.5],
+         [-0.5]],
+        [[0.000],
+         [0.000]]
     ]) * box_length / 2
 
     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
@@ -76,16 +89,6 @@ def run_md_simulation():
         for particle in Argon.__instances__:
             particle.propagate()
         Argon.tick()
-
-        # print("pos: ")
-        # print(Argon.__instances__[0].pos[Argon.__instances__[0].__class__.current_step])
-        # print("vel: ")
-        # print(Argon.__instances__[0].vel[Argon.__instances__[0].__class__.current_step])
-        # print("force: ")
-        # print(Argon.__instances__[0].force[Argon.__instances__[0].__class__.current_step])
-        # print("dpos: ")
-        # print(Argon.__instances__[0].dpos)
-        # print()
 
 
 def save_particle_past(object_array, loc="", name="MD_simulation"):
@@ -124,7 +127,7 @@ def save_particle_past(object_array, loc="", name="MD_simulation"):
 
     np.save(loc / name, storage_array)
 
-def main(n_particles=4, n_dim=2, n_steps=5000,
+def main(n_particles=5, n_dim=2, n_steps=1000,
          timestep=1e-21, box_length=3.405e-8):
     """
     Main wrapper for the MD simulation

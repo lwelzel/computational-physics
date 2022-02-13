@@ -290,6 +290,10 @@ class Particle(MetaClassParticle):
         potential = self.potential_lennard_jones(dist)
         return - potential * vector / dist
 
+    def force_lennard_jones(self, r):
+        sigma_r_ratio = self.__class__.sigma / r
+        return 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
+               * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def potential_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
@@ -319,8 +323,10 @@ class Particle(MetaClassParticle):
         :sets: normalized parameters
         """
         cls.box_length *= 1 / cls.sigma
+
         cls.timestep *= np.sqrt(cls.internal_energy /
-                                           (cls.particle_mass * np.power(cls.sigma, 2)))
+                                (cls.particle_mass * np.power(cls.sigma, 2)))
+
 
         cls.temperature *= Constants.bk / cls.internal_energy
         cls.energy *= 1 / cls.internal_energy
