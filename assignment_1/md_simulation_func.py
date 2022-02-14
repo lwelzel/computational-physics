@@ -34,30 +34,25 @@ def set_up_simulation(n_particles, n_dim, n_steps,
 
     # setup rng
     rng = np.random.default_rng()
-    initial_particle_position = rng.uniform(low=-1, high=1, size=shape) * box_length / 2
+    initial_particle_position = rng.uniform(low=-1, high=1, size=shape) * box_length / 2  # random particle positions
+    # TODO: np.mgrid is more efficient
+    # TODO: implement rough sphere packing for even distribution - eazypeazy NP-hard
+    # shitty approach for square/cube numbers of particles below - OF COURSE ONLY WORKS FOR SQUARES
+    initial_particle_position, step = np.linspace(-1, 1, int(np.sqrt(n_particles)), endpoint=False, retstep=True)
+    initial_particle_position += step/2
+    initial_particle_position = (np.array(np.meshgrid(initial_particle_position,
+                                                     initial_particle_position)).T * box_length / 2).reshape(shape)
+    initial_particle_position += rng.normal(loc=0, scale=5e-2, size=shape) * box_length / 2
     # initial_particle_position = np.array([
     #     [[0.55],
-    #      [0.5]],
-    #     [[-0.5],
-    #      [0.49]],
-    #     [[-0.51],
-    #      [-0.51]],
-    #     [[0.502],
-    #      [-0.25]]
+    #      [0.45]],
+    #     [[-0.55],
+    #      [0.45]],
+    #     [[-0.55],
+    #      [-0.45]],
+    #     [[0.35],
+    #      [-0.45]],
     # ]) * box_length / 2
-
-    initial_particle_position = np.array([
-        [[0.5],
-         [0.5]],
-        [[-0.5],
-         [0.5]],
-        [[-0.5],
-         [-0.5]],
-        [[0.5],
-         [-0.5]],
-        [[0.000],
-         [0.000]]
-    ]) * box_length / 2
 
     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
     initial_particle_force = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
@@ -80,6 +75,9 @@ def set_up_simulation(n_particles, n_dim, n_steps,
                                               f"Particles to be generated:      {n_particles:.0f}\n" \
                                               f"Particles that were generated:  {Argon.__n_active__:.0f}\n" \
                                               f"Oops..."
+
+    if False:
+        plot_lj()
 
 
 def run_md_simulation():
@@ -127,8 +125,8 @@ def save_particle_past(object_array, loc="", name="MD_simulation"):
 
     np.save(loc / name, storage_array)
 
-def main(n_particles=5, n_dim=2, n_steps=1000,
-         timestep=1e-21, box_length=3.405e-8):
+def main(n_particles=16, n_dim=2, n_steps=1000,
+         timestep=1e-22, box_length=3.405e-8):
     """
     Main wrapper for the MD simulation
     :param n_particles:
@@ -155,6 +153,48 @@ def intro():
         for Comp. Phys. - LU
         """
     )
+
+def plot_lj():
+    import matplotlib.pyplot as plt
+    fig, (ax, ax1) = plt.subplots(nrows=2, ncols=1,
+                                  constrained_layout=True,
+                                  sharex=True,
+                                  figsize=(6, 12))
+    x_min = 0.8
+    x = np.linspace(x_min, 3, 500)
+    ax.plot(x, Argon.potential_lennard_jones(Argon.__instances__[0], x),
+            color="k")
+
+    # AXIS TICK LABELS
+    ax.set_ylim(-2, 2)
+    ax.set_xlim(x_min, None)
+    ax.set_ylabel(r'$\Phi ~ (E_{LJ}/\epsilon)$ [-]')
+
+    ax1.plot(x, Argon.force_lennard_jones(Argon.__instances__[0], x),
+             color="k")
+
+    # AXIS TICK LABELS
+    ax1.set_ylim(-2, 2)
+    ax1.set_xlim(x_min, None)
+    ax1.set_xlabel(r'$\frac{R}{\sigma}$ [-]')
+    ax1.set_ylabel(r'$\nabla\Phi ~ (F\sigma/\epsilon)$ [-]')
+
+    # GLOBAL
+    ax.axhline(0, ls="dotted", color="gray")
+    ax.axhline(-1, ls="dotted", color="gray")
+    ax.axvline(1, ls="dotted", color="gray")
+    ax1.axhline(0, ls="dotted", color="gray")
+    ax1.axvline(1, ls="dotted", color="gray")
+
+    ax.set_title(
+        r'$by~L. Welzel~and~C. Slaughter$'
+        f'\n\nArgon: LJ-Potential',
+        fontsize=11)
+    ax1.set_title(
+        f'Argon: LJ-Force',
+        fontsize=11)
+    fig.suptitle(f'LJ-Potential & Force', fontsize=20, weight="bold")
+    plt.show()
 
 if __name__ == "__main__":
     main()

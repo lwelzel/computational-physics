@@ -287,17 +287,17 @@ class Particle(MetaClassParticle):
 
     def get_force(self, other):
         dist, vector = self.get_distance_absoluteA1(other)
-        potential = self.potential_lennard_jones(dist)
-        return - potential * vector / dist
+        force = self.force_lennard_jones(dist)
+        return - force * vector / dist
 
     def force_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
+        return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def potential_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return - 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
+        return 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def next_position(self):
         self.dpos[:] = self.vel[self.__class__.current_step] * self.__class__.timestep
