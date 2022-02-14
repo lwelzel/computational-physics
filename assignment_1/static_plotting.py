@@ -1,7 +1,7 @@
 import numpy as np
 import plotly.graph_objects as go
 import matplotlib as mpl
-from matplotlib import colormaps as cm
+from matplotlib import cm
 import matplotlib.pyplot as plt
 from pathlib import Path
 
@@ -61,7 +61,7 @@ def mpl_strict_2d_static(pos):
     size[-1] = 15
     size *= 1
     # alpha
-    alpha = np.ones(len(pos[0])) * 0.05
+    alpha = np.ones(len(pos[0])) * 0.025
     alpha[-1] = 1
 
     # colors of markers, colors sample of plt colormaps
@@ -117,9 +117,9 @@ def mpl_strict_2d_static(pos):
         r'$by~L. Welzel~and~C. Slaughter$',
         fontsize=11)
     fig.suptitle(f'MD Simulation', fontsize=20, weight="bold")
-    plt.show()
-    plt.savefig("MD_Argon_strict_2D", dpi=300, format="png", metadata=None,
+    plt.savefig("MD_Argon_strict_2D.png", dpi=300, format="png", metadata=None,
         facecolor='auto', edgecolor='auto')
+    plt.show()
     return
 
 def main():

@@ -125,7 +125,7 @@ def save_particle_past(object_array, loc="", name="MD_simulation"):
 
     np.save(loc / name, storage_array)
 
-def main(n_particles=16, n_dim=2, n_steps=1000,
+def main(n_particles=16, n_dim=2, n_steps=2000,
          timestep=1e-22, box_length=3.405e-8):
     """
     Main wrapper for the MD simulation

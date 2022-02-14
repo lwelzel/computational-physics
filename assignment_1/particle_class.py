@@ -85,6 +85,7 @@ class MetaClassParticle(object):
         self.__class__.__instances__[self.__instance_loc__] = self
 
         # general setup
+        # TODO: almost all of these are redundant calls!
         self.__class__.n_dim = n_dim
         self.__class__.current_step = 0
 
@@ -192,12 +193,14 @@ class Particle(MetaClassParticle):
     sigma = particle_sigma
 
     # MEDIUM PROPERTIES
-    # TODO: implement way to update
-    temperature = 0
-    energy = 0
-    pressure = 0
-    density = 0
-    surface_tension = 0
+    # TODO: implement way to update (some)
+    scale_velocity = np.array([])
+    temperature = np.array([])
+    potential_energy = np.array([])
+    kinetic_energy = np.array([])
+    pressure = np.array([])
+    density = np.array([])
+    surface_tension = np.array([])
 
     def __init__(self, n_steps, n_dim,
                  initial_pos, initial_vel, initial_force,
@@ -243,6 +246,8 @@ class Particle(MetaClassParticle):
         self.k = np.full(shape=(self.__class__.n_dim, 1), fill_value=0, dtype=np.int64)
         # convenience difference vector for positions
         self.dpos = np.full(shape=(self.__class__.n_dim, 1), fill_value=0.)
+        # convenience velocity vector
+        self.v_vel = np.full(shape=(self.__class__.n_dim, 1), fill_value=0.)
 
 
     def wrap_d_vector(self):
@@ -283,12 +288,15 @@ class Particle(MetaClassParticle):
         # TODO: make an interpolant for this function so it does not need to be computed at every step
         # TODO: equal an opposite reaction: compute forces just once
         for other in np.ma.array(self.__class__.__instances__, mask=self.mask).compressed():
-            self.force[self.__class__.current_step] = self.force[self.__class__.current_step] + self.get_force(other)
+            force, potential = self.get_force_potential(other)
+            # no idea why 0.5, maybe because of two particles?
+            # Does not matter since we are only interested in the relative quantities at the moment
+            self.__class__.potential_energy[self.__class__.current_step] += 0.5 * potential
+            self.force[self.__class__.current_step] = self.force[self.__class__.current_step] + force
 
-    def get_force(self, other):
+    def get_force_potential(self, other):
         dist, vector = self.get_distance_absoluteA1(other)
-        force = self.force_lennard_jones(dist)
-        return - force * vector / dist
+        return - self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist)
 
     def force_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
@@ -318,6 +326,7 @@ class Particle(MetaClassParticle):
     @classmethod
     def normalize_problem(cls):
         """
+        Bad name
         Normalize parameters of simulation based on
                                 https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
         :sets: normalized parameters
@@ -329,9 +338,10 @@ class Particle(MetaClassParticle):
 
 
         cls.temperature *= Constants.bk / cls.internal_energy
-        cls.energy *= 1 / cls.internal_energy
+        cls.potential_energy *= 1 / cls.internal_energy
+        cls.kinetic_energy *= 1 / cls.internal_energy
         cls.pressure *= np.power(cls.sigma, 3) / cls.internal_energy
-        cls.density *= np.power(cls.sigma, 3)
+        cls.density *= np.power(cls.sigma, cls.n_dim)
         cls.surface_tension *= np.power(cls.sigma, 2) / cls.internal_energy
 
         # iterate over particles and normalize values
@@ -345,10 +355,50 @@ class Particle(MetaClassParticle):
         cls.update_meta_class(timestep=cls.timestep,
                               box_length=cls.box_length)
 
+        # set simulation level properties that are only known after setting up the particles
+        cls.scale_velocity = np.ones(cls.__instances__[0].n_steps)
+        cls.temperature = np.zeros(cls.__instances__[0].n_steps)
+        cls.kinetic_energy = np.zeros(cls.__instances__[0].n_steps)
+        cls.potential_energy = np.zeros(cls.__instances__[0].n_steps)
+        cls.pressure = np.zeros(cls.__instances__[0].n_steps)
+        cls.density = np.zeros(cls.__instances__[0].n_steps)
+        cls.surface_tension = np.zeros(cls.__instances__[0].n_steps)
+
         cls.mass = 1
         cls.sigma = 1
         cls.internal_energy = 1
         cls.bk = 1
+
+
+    @classmethod
+    def get_temperature(cls):
+        for particle in cls.__instances__:
+            particle.v_vel[:] = particle.vel[cls.current_step] * cls.box_length
+            cls.kinetic_energy[cls.current_step] += 0.5 *\
+                                                    np.einsum('ij,ij->j',
+                                                              particle.v_vel[:],
+                                                              particle.v_vel[:])
+
+        cls.kinetic_energy[cls.current_step] *= 1 / cls.__n_active__
+        return cls.kinetic_energy[cls.current_step] / cls.n_dim
+
+    @classmethod
+    def tick(cls):
+        """
+        Moves the simulation one step forwards
+        :return:
+        """
+        # TODO: find way to scale velocity using this temperature
+        #  use that the last step in the solution array is NOT iterated on!
+        cls.temperature[cls.current_step] = cls.get_temperature()
+        # print(cls.temperature[cls.current_step])
+
+        # cls.pressure[cls.current_step] = 0
+        # cls.density[cls.current_step] = 0
+        # cls.surface_tension[cls.current_step] = 0
+
+        # stepping
+        cls.current_step += 1
 
 
 
