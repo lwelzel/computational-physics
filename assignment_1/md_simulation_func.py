@@ -1,12 +1,7 @@
 import numpy as np
-import pandas as pd
 from pathlib import Path
-from time import time, strftime, gmtime
-from tempfile import mkdtemp
-from tqdm import tqdm
 from md_simulation_class import MolDyn
 from argon_class import Argon
-from constants_class import Constants
 
 def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
                       time_total=0.9e-18, initial_timestep=2e-22,
@@ -48,7 +43,7 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
     initial_particle_position += step/2
     initial_particle_position = (np.array(np.meshgrid(initial_particle_position,
                                                       initial_particle_position)).T * box_length / 2).reshape(shape)
-    initial_particle_position += rng.normal(loc=0, scale=7.5e-2, size=shape) * box_length / 2
+    initial_particle_position += rng.normal(loc=0, scale=1e-4, size=shape) * box_length / 2
 
     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
     initial_particle_acc = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))

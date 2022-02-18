@@ -1,6 +1,7 @@
 # To Dos:
 
 ### Simulation backend:
+- [ ] Implement equipartition, the normalization is (partially) wrong (v, acc, force?)
 - [ ] Use computed force/potential for particle interaction i, j to set force/potential for BOTH particles
 - [ ] Implement conservation of energy (or constant temperature? Not sure, I think first one is better) 
   -> scale velocities or accelerations with it

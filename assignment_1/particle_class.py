@@ -174,6 +174,7 @@ class Particle(object):
         # TODO: make this a class method which then iterates over all particles of a species
         # iterate over particles and normalize values
         self.pos *= 1 / self.__class__.sigma
+        # TODO: implement equipartition, the normalization is wrong here!
         self.vel *= 1 / self.__class__.sigma * \
                     1 / np.sqrt(self.__class__.internal_energy /
                                 (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
