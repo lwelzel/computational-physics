@@ -1,185 +1,12 @@
 import numpy as np
-from constants_class import Constants
+from weakref import ref, proxy
 # from scipy.spatial.distance import cdist, euclidean  # slow af
 from sys import version_info
-from itertools import count
+# from md_simulation_class import MolDyn
 
-# np.can_cast(int, float, casting='safe')
-
-class MetaClassParticle(object):
+class Particle(object):
     """
-    Meta Class for the Particle Class to handle instance tracking and self-knowledge of the Particle class
-    """
-    if version_info < (3, 9):
-        raise EnvironmentError("Please update to Python 3.9 or later (code written for Python 3.9.x).\n"
-                               "This is required for the proper function of MetaClasses\n"
-                               "which use the double  @classmethod @property decorator.\n"
-                               "We use this, pythonic approach, to keep track of our particles.")
-
-    # TODO: maybe this is a bad idea but Id like to avoid passing around objects all the time.
-    #  So what I suggest is that we store the instances in the class itself (at least as references).
-    #  This is probably really stupid and is gonna bite us in the butt later but for now I dont see how it could.
-    #  Except if there is a lot of particles of course but then we are screwed anyway :)
-    #  Has the same(-ish) problem to the one above, but is nicer
-
-    # META PARAMETERS
-    # ok stupid solution first, max number of particles = 1000
-    # this also makes mp really impossible, oh well...
-    # TODO: should be able to modify via class method
-    max_particles = 1000  # max number of particles that can be created per class
-    """
-    i.e. a value of 10 means that a maximum of 10 instances of Particle sub-class e.g. Argon can be created
-    Intended function: defined per sub-sub class to this Meta Class, 
-    setting __max_particles = N means:
-        - unlimited instances of MetaClassParticle
-        - unlimited instances of (semi meta class) Particle
-        - max N instances of Particle sub-class (e.g. Argon)
-    """
-
-    __instances__ = np.full(max_particles, fill_value=None, dtype=object)
-    # this is really bad, I should just be able to check in __n_active__ using __instances__ but its funky
-    # also is the mask that is used to filter currently active particle
-    # 0 when unoccupied, int when occupied
-    __occupation__ = np.full(max_particles, fill_value=0)
-
-    # PARTICLE PARAMETERS
-    particle_name = "Meta_Particle"
-    # normalization
-    bk = Constants.bk
-
-    # SIMULATION PROPERTIES
-    # MIC implementation is based on discussion of MIC Boundary Conditions for C/C++
-    #   U.K. Deiters, 2013: "Efficient Coding of the Minimum Image Convention". Z. Phys. Chem.
-    n_dim = 0
-    timestep = 1 # s
-    # define box extents
-    box_length = 1
-    box = np.array([])
-    box_r = np.array([])
-    box2 = np.array([])
-    box2_r = np.array([])
-    # stepping
-    # TODO: put simulation stuff in its own class - but *think* first!
-    #  issues:
-    #  - keeping track of instances
-    #  - instances referring to simulation para
-    current_step = 0  # needs to be increased each step by calling .tick() on the class
-
-    # META INSTANCE ATTRIBUTES
-    idservice = count(1)
-
-    def __init__(self, n_dim, **kwargs):
-        super(MetaClassParticle, self).__init__(**kwargs)
-
-        # meta
-        self.__id__ = next(self.__class__.idservice)
-        self.__huid__ = f"{self.__class__.particle_name}{self.__id__:05}"
-
-        # define location of the instance in the instance class array
-        self.__instance_loc__ = self.__n_active__
-        self.__class__.__occupation__[self.__instance_loc__] = self.__id__
-        # mask out the particle itself so it is not double counted
-        # TODO: this can be better implemented using a diagonal square bool matrix (false on diagonal)
-        self.mask = self.__occupation__ - self.__id__ == 0
-        # save instance to instance class array
-        self.__class__.__instances__[self.__instance_loc__] = self
-
-        # general setup
-        # TODO: almost all of these are redundant calls!
-        self.__class__.n_dim = n_dim
-        self.__class__.current_step = 0
-
-
-    @classmethod
-    def setup_mic(cls):
-        """
-        Sets up the bounding box of the simulation and constructs MCI helpers/enforcers
-        needs to be re-called when adjusting box_length
-        :return:
-        """
-        cls.box = np.ones(shape=(cls.n_dim, 1)) * cls.box_length
-        cls.box_r = 1 / cls.box
-        cls.box2 = 0.5 * cls.box
-        cls.box2_r = 1 / cls.box2
-
-    @classmethod
-    @property
-    def __n_active__(cls):
-        """
-        Method to find the number of currently active instance.
-        When creating a new instance the method is used to set the position of the instance in the instance class array
-        :return: Number of active instances
-        """
-        return np.count_nonzero(cls.__occupation__)
-
-    @classmethod
-    @property
-    def get__instances(cls):
-        return cls.__instances__
-
-    def __delete_self__(self):
-        """
-        Delete an instance from the class instance array
-        aka thanos snap the instance
-        :param which_loc: index of the instance to be deleted in the class instance array
-        :return:
-        """
-        self.__class__.__instances__[self.__instance_loc__:] = self.__class__.__instances__[self.__instance_loc__ + 1:]
-        self.__class__.__occupation__[self.__instance_loc__:] = self.__class__.__occupation__[self.__instance_loc__ + 1:]
-        self.__class__.__instances__[-1] = None
-        self.__class__.__occupation__[-1] = 0
-        for ins in self.__class__.__instances__[self.__instance_loc__:]:
-            ins.__instance_loc__ -= 1
-            # I am not sure if below is a good idea, it will surely bite us later
-            ins.__id__ -= 1
-
-    @classmethod
-    def update_meta_class(cls,
-                          __instances__=False,
-                          __occupation__=False,
-                          max_particles=None,
-                          particle_name=None,
-                          n_dim=None,
-                          timestep=None,
-                          box_length=None):
-        """
-        Updates attributes of the meta class(es)
-        Warning: calling this after set-up will delete data
-        :param __instances__: True if it should be updated, False otherwise
-        :param __occupation__: True if it should be updated, False otherwise
-        :param max_particles: variable if it should be updated, None otherwise
-        :param particle_name: variable if it should be updated, None otherwise
-        :param n_dim: variable if it should be updated, None otherwise
-        :param timestep: variable if it should be updated, None otherwise
-        :return:
-        """
-        if max_particles is not None:
-            cls.max_particles = max_particles
-        if particle_name is not None:
-            cls.particle_name = particle_name
-        if n_dim is not None:
-            cls.n_dim = n_dim
-        if timestep is not None:
-            cls.timestep = timestep
-        if box_length is not None:
-            cls.box_length = box_length
-            cls.setup_mic()
-
-
-        # these are the important ones to update
-        if __instances__:
-            cls.__instances__ = np.full(cls.max_particles, fill_value=None, dtype=object)
-        if __occupation__:
-            cls.__occupation__ = np.full(cls.max_particles, fill_value=0)
-
-    @classmethod
-    def tick(cls):
-        cls.current_step += 1
-
-
-class Particle(MetaClassParticle):
-    """
-    Class to keep track of particles
+    Particle Class to handle instance tracking and self-knowledge of the Particle class
     """
 
     # PARTICLE PROPERTIES
@@ -187,23 +14,14 @@ class Particle(MetaClassParticle):
     particle_mass = 1
     particle_internal_energy = 1
     particle_sigma = 1
+
     # normalization
     mass = particle_mass
     internal_energy = particle_internal_energy
     sigma = particle_sigma
 
-    # MEDIUM PROPERTIES
-    # TODO: implement way to update (some)
-    scale_velocity = np.array([])
-    temperature = np.array([])
-    potential_energy = np.array([])
-    kinetic_energy = np.array([])
-    pressure = np.array([])
-    density = np.array([])
-    surface_tension = np.array([])
-
-    def __init__(self, n_steps, n_dim,
-                 initial_pos, initial_vel, initial_force,
+    def __init__(self, sim,
+                 initial_pos, initial_vel, initial_acc,
                  **kwargs):
         """
 
@@ -211,28 +29,48 @@ class Particle(MetaClassParticle):
         :param n_dim:
         :param initial_pos: shape = (3, 1)
         :param initial_vel: shape = (3, 1)
-        :param initial_force: shape = (3, 1)
+        :param initial_acc: shape = (3, 1)
         :param kwargs:
         """
         # setup
-        super(Particle, self).__init__(n_dim, **kwargs)
+        super(Particle, self).__init__()
+
+        # meta
+        self.sim = sim
+        self.__id__ = next(self.sim.idservice)
+        self.__huid__ = f"{self.particle_name}{self.__id__:05}"
+
+        # define location of the instance in the instance class array
+        self.__instance_loc__ = self.sim.n_active
+        self.sim.occupation[self.__instance_loc__] = self.__id__
+        # save instance to simulation instance array
+        # since particles have a reference to MolDyn (sim) and a MolDyn.sim has references to particles
+        # we should use *weak* references to avoid memory leaks the issues should be fixed in Python >3.7 but still
+        self.sim.instances[self.__instance_loc__] = self
+        # mask out the particle itself so it is not double counted
+        # TODO: this can be better implemented using a diagonal square bool matrix (false on diagonal)
+        # TODO: MD sim class should have this and then check np.nonzero(occupation - self.id)
+        self.mask = self.sim.occupation - self.__id__ == 0
 
         # general backend
-        self.n_steps = n_steps
-        shape = (self.n_steps, self.n_dim, 1)
+        shape = (self.sim.n_steps, self.sim.n_dim, 1)
 
         # TODO: hash ID for each particle
 
-        # each vector (position, velocity, force)
+        # each vector (position, velocity, acc)
         # is pre-initialized with n steps in n_dimensions
-        self.pos = np.full(shape=shape, fill_value=0.)
-        self.vel = np.full(shape=shape, fill_value=0.)
-        self.force = np.full(shape=shape, fill_value=0.)
+        # TODO: maybe we should use floats with higher precision to avoid explosions of absolute errors?
+        #  np.float128 -> memory size issues ofc also not that easy to make sure we dont lose precision
+        #  my machine does not provide anything over double precision
+        self.pos = np.zeros(shape=shape)
+        self.vel = np.zeros(shape=shape)
+        self.acc = np.zeros(shape=shape)
+        self.force = np.zeros(shape=shape)
 
         # initial values
         self.pos[0] = initial_pos
         self.vel[0] = initial_vel
-        self.force[0] = initial_force
+        self.acc[0] = initial_acc
 
         # other particle properties
         # TODO: those are just placeholders at this point.
@@ -243,17 +81,20 @@ class Particle(MetaClassParticle):
         # k keeps track of particles "outside" the box, if particles bound very quickly
         # (more than 127 boxes in a single tick) we are f-ed
         # or we can just replace it with a larger int (np.int128 is max I think)
-        self.k = np.full(shape=(self.__class__.n_dim, 1), fill_value=0, dtype=np.int64)
+        self.k = np.zeros(shape=(self.sim.n_dim, 1), dtype=np.int64)
         # convenience difference vector for positions
-        self.dpos = np.full(shape=(self.__class__.n_dim, 1), fill_value=0.)
+        self.dpos = np.zeros(shape=(self.sim.n_dim, 1))
         # convenience velocity vector
-        self.v_vel = np.full(shape=(self.__class__.n_dim, 1), fill_value=0.)
+        self.v_vel = np.zeros(shape=(self.sim.n_dim, 1))
+
+    def __repr__(self):
+        return f"\nParticle Class __repr__ not implemented.\n"
 
 
     def wrap_d_vector(self):
         self.k[:] = self.dpos[:] \
-                    * self.__class__.box2_r  # this casts the result to int, finding in where the closest box is
-        self.dpos[:] = self.dpos[:] - self.k * self.__class__.box  # casting back to float must be explicit
+                    * self.sim.box2_r  # this casts the result to int, finding in where the closest box is
+        self.dpos[:] = self.dpos[:] - self.k * self.sim.box  # casting back to float must be explicit
 
 
     def get_distance_vectorA1(self, other):
@@ -263,7 +104,7 @@ class Particle(MetaClassParticle):
         :param other: other instance of Particle (sub-) class
         :return: distance
         """
-        self.dpos[:] = other.pos[self.__class__.current_step] - self.pos[self.__class__.current_step]
+        self.dpos[:] = other.pos[self.sim.current_step] - self.pos[self.sim.current_step]
         self.wrap_d_vector()
 
     def get_distance_absoluteA1(self, other):
@@ -287,12 +128,12 @@ class Particle(MetaClassParticle):
         #  If np.ma.array(arr, mask) stores a reference to arr instead of the thing itself that should work
         # TODO: make an interpolant for this function so it does not need to be computed at every step
         # TODO: equal an opposite reaction: compute forces just once
-        for other in np.ma.array(self.__class__.__instances__, mask=self.mask).compressed():
+        for other in np.ma.array(self.sim.instances, mask=self.mask).compressed():
             force, potential = self.get_force_potential(other)
             # no idea why 0.5, maybe because of two particles?
             # Does not matter since we are only interested in the relative quantities at the moment
-            self.__class__.potential_energy[self.__class__.current_step] += 0.5 * potential
-            self.force[self.__class__.current_step] = self.force[self.__class__.current_step] + force
+            self.sim.potential_energy[self.sim.current_step] += 0.5 * potential
+            self.force[self.sim.current_step] = self.force[self.sim.current_step] + force
 
     def get_force_potential(self, other):
         dist, vector = self.get_distance_absoluteA1(other)
@@ -308,97 +149,45 @@ class Particle(MetaClassParticle):
         return 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def next_position(self):
-        self.dpos[:] = self.vel[self.__class__.current_step] * self.__class__.timestep
+        self.dpos[:] = self.vel[self.sim.current_step] * self.sim.current_timestep
         return
-
 
     def propagate(self):
-        self.dpos[:] = self.pos[self.__class__.current_step] \
-                       + self.vel[self.__class__.current_step] * self.__class__.timestep
+        self.dpos[:] = self.pos[self.sim.current_step] \
+                       + self.vel[self.sim.current_step] * self.sim.current_timestep
         self.wrap_d_vector()
-        self.pos[self.__class__.current_step + 1] = self.dpos
+
+        self.pos[self.sim.current_step + 1] = self.dpos
         self.set_resulting_force()
-        self.vel[self.__class__.current_step + 1] = self.vel[self.__class__.current_step] \
+        self.vel[self.sim.current_step + 1] = self.vel[self.sim.current_step] \
                                                     + 1 / self.__class__.particle_mass \
-                                                    * self.force[self.__class__.current_step] * self.__class__.timestep
+                                                    * self.force[self.sim.current_step] * self.sim.current_timestep
         return
 
-    @classmethod
-    def normalize_problem(cls):
+    def normalize_particle(self):
         """
         Bad name
         Normalize parameters of simulation based on
                                 https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
         :sets: normalized parameters
         """
-        cls.box_length *= 1 / cls.sigma
-
-        cls.timestep *= np.sqrt(cls.internal_energy /
-                                (cls.particle_mass * np.power(cls.sigma, 2)))
-
-
-        cls.temperature *= Constants.bk / cls.internal_energy
-        cls.potential_energy *= 1 / cls.internal_energy
-        cls.kinetic_energy *= 1 / cls.internal_energy
-        cls.pressure *= np.power(cls.sigma, 3) / cls.internal_energy
-        cls.density *= np.power(cls.sigma, cls.n_dim)
-        cls.surface_tension *= np.power(cls.sigma, 2) / cls.internal_energy
-
+        # TODO: make this a class method which then iterates over all particles of a species
         # iterate over particles and normalize values
-        for particle in cls.__instances__:
-            particle.pos *= 1 / cls.sigma
-            particle.vel *= np.sqrt(cls.internal_energy /
-                                    (cls.particle_mass * np.power(cls.sigma, 2)))\
-                            / cls.sigma
-            particle.force *= cls.sigma / cls.internal_energy
+        self.pos *= 1 / self.__class__.sigma
+        self.vel *= 1 / self.__class__.sigma * \
+                    1 / np.sqrt(self.__class__.internal_energy /
+                                (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
+        self.acc *= 1 / self.__class__.sigma * \
+                    1 /(self.__class__.internal_energy /
+                        (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
 
-        cls.update_meta_class(timestep=cls.timestep,
-                              box_length=cls.box_length)
+        self.force *= self.__class__.sigma / self.__class__.internal_energy
 
-        # set simulation level properties that are only known after setting up the particles
-        cls.scale_velocity = np.ones(cls.__instances__[0].n_steps)
-        cls.temperature = np.zeros(cls.__instances__[0].n_steps)
-        cls.kinetic_energy = np.zeros(cls.__instances__[0].n_steps)
-        cls.potential_energy = np.zeros(cls.__instances__[0].n_steps)
-        cls.pressure = np.zeros(cls.__instances__[0].n_steps)
-        cls.density = np.zeros(cls.__instances__[0].n_steps)
-        cls.surface_tension = np.zeros(cls.__instances__[0].n_steps)
+    def reset_lap(self):
+        self.pos[0] = self.pos[-1]
+        self.vel[0] = self.vel[-1]
+        self.force[0] = self.force[-1]
 
-        cls.mass = 1
-        cls.sigma = 1
-        cls.internal_energy = 1
-        cls.bk = 1
-
-
-    @classmethod
-    def get_temperature(cls):
-        for particle in cls.__instances__:
-            particle.v_vel[:] = particle.vel[cls.current_step] * cls.box_length
-            cls.kinetic_energy[cls.current_step] += 0.5 *\
-                                                    np.einsum('ij,ij->j',
-                                                              particle.v_vel[:],
-                                                              particle.v_vel[:])
-
-        cls.kinetic_energy[cls.current_step] *= 1 / cls.__n_active__
-        return cls.kinetic_energy[cls.current_step] / cls.n_dim
-
-    @classmethod
-    def tick(cls):
-        """
-        Moves the simulation one step forwards
-        :return:
-        """
-        # TODO: find way to scale velocity using this temperature
-        #  use that the last step in the solution array is NOT iterated on!
-        cls.temperature[cls.current_step] = cls.get_temperature()
-        # print(cls.temperature[cls.current_step])
-
-        # cls.pressure[cls.current_step] = 0
-        # cls.density[cls.current_step] = 0
-        # cls.surface_tension[cls.current_step] = 0
-
-        # stepping
-        cls.current_step += 1
 
 
 

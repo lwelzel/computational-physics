@@ -26,11 +26,8 @@ class Argon(Particle):
     internal_energy = particle_internal_energy
     sigma = particle_sigma
 
-    # SIMULATION PARAMETERS
-    box_length = 1e-10
-
-    def __init__(self, n_steps, n_dim,
-                 initial_pos, initial_vel, initial_force,
+    def __init__(self, sim,
+                 initial_pos, initial_vel, initial_acc,
                  **kwargs):
         """
 
@@ -42,5 +39,5 @@ class Argon(Particle):
         :param kwargs:
         """
         # setup
-        super(Argon, self).__init__(n_steps, n_dim, initial_pos, initial_vel, initial_force, **kwargs)
+        super(Argon, self).__init__(sim, initial_pos, initial_vel, initial_acc, **kwargs)
 

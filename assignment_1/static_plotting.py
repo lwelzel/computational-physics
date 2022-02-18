@@ -1,4 +1,5 @@
 import numpy as np
+import h5py
 import plotly.graph_objects as go
 import matplotlib as mpl
 from matplotlib import cm
@@ -42,8 +43,31 @@ def read_npy_data(loc,):
 
     return samples
 
-def plotly_3d_static(pos):
+def read_h5_data(loc,):
+    """
+    Should read data that is like:
+        (steps, particles, n_dims)
+    :param loc:
+    :return: data like: (particles, steps, n_dims)
+    """
+    # TODO: implement proper sampling and slicing
+    first_step = 0
+    samples_shape = np.array([100, 100, 3, 1])
 
+    with h5py.File(loc, "r") as file:
+        # # print("Keys: %s" % f.keys())
+        # a_group_key = list(file.keys())[0]
+        #
+        # # Get the data
+        # samples = list(file[a_group_key])
+        samples = np.array(file["position"])
+
+    samples = np.swapaxes(samples, 0, 1)
+
+
+    return samples
+
+def plotly_3d_static(pos):
     return
 
 def mpl_strict_2d_static(pos):
@@ -88,18 +112,11 @@ def mpl_strict_2d_static(pos):
     max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
     ax.set_xlim(-max, max)
     ax.set_ylim(-max, max)
+
     label_format = '{:.0f}'
     n_ticks = 5
     ax.set_xlabel(r'$\frac{r_{x}}{\sigma}$ [-]')
     ax.set_ylabel(r'$\frac{r_{y}}{\sigma}$ [-]')
-
-    # x_labels = np.linspace(-800, 800, n_ticks)
-    # x_ticks = (x_labels / au_pscale) + 100
-    # x_labels = [label_format.format(x) for x in x_labels]
-    # ax.set_xticks(x_ticks)
-    # ax.set_xticklabels(x_labels)
-    # ax.set_yticks(x_ticks)
-    # ax.set_yticklabels(x_labels)
 
     rect = mpl.patches.Rectangle((-50, -50), 100, 100, linewidth=1,
                                  edgecolor='k', facecolor='none',
@@ -123,7 +140,7 @@ def mpl_strict_2d_static(pos):
     return
 
 def main():
-    pos = read_npy_data(Path("MD_simulation.npy"))
+    pos = read_h5_data(Path("MD_simulation.h5"))
     mpl_strict_2d_static(pos)
     # plotly_3d_static(pos)
 
