@@ -64,7 +64,6 @@ def read_h5_data(loc,):
 
     samples = np.swapaxes(samples, 0, 1)
 
-
     return samples
 
 def plotly_3d_static(pos):

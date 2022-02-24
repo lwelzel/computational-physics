@@ -6,6 +6,7 @@
 - [ ] Implement conservation of energy (or constant temperature? Not sure, I think first one is better) 
   -> scale velocities or accelerations with it
 - [ ] Have a look at https://pycallgraph.readthedocs.io/en/master/ - not active, look for alternative
+- [ ] Track and plot stat variables (temperature, energy etc) (maybe also for you if you have the time)
 - [ ] Try 3D 
     1) write initial position functions 
     2) write plotter (use plotly for 3D plots)
@@ -13,7 +14,7 @@
     4) set n_dim to 3 and hit run()
     
 - [ ] Implement variable time stepping (probably use adaptive RK45) scale with minimum timestep 
-  (this sounds horribly slow)
+  (this sounds horribly slow) - simplectic 
 - [ ] Define cut-off distances after which the interactions are not computed
 - [ ] Define interpolant/lookup for LJ force/potential to speed up code
 - [ ] numba all of this (not sure if this works with OOP)
