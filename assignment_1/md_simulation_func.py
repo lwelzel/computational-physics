@@ -32,6 +32,8 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
 
     # general
     shape = (n_particles, n_dim, 1)
+    
+    #test
 
     # setup rng
     rng = np.random.default_rng()
