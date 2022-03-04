@@ -83,15 +83,17 @@ def mpl_strict_2d_static(pos):
     	n_cols=2
     	n_plots=[0,2,3]
 	
-    fig, axs = plt.subplots(nrows=n_rows, ncols=n_cols,
+    fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols,
                            constrained_layout=True, subplot_kw={'aspect': 1},
                            # sharex=True, sharey=True,
                            figsize=(7, 7))
     # structure  is (particles, steps, n_dims, 1)
     
     
-    axs[0,1].axis('off')
-    axes=axs.flatten()
+    if pos.shape[2] == 3:
+    	axs[0,1].axis('off')
+    	axes=axes.flatten()
+    	
 
     # sizes of markers, last position is fat
     size = np.ones(len(pos[0]))
@@ -115,7 +117,10 @@ def mpl_strict_2d_static(pos):
     n_ticks = 5
     
     for plt_idx in n_plots:
-    	ax=axes[plt_idx]
+    	if pos.shape[2] == 3:
+    		ax=axes[plt_idx]
+    	else:
+    		ax=axes
     	if plt_idx == 0: #XY Plane
     		for i, (particle, color) in enumerate(zip(pos, colors)):
     			ax.scatter(*np.reshape(particle[:,[0,1]],newshape=(len(particle), -1)).T, s=size, c=color, alpha=alpha)
