@@ -154,6 +154,8 @@ class MolDyn(object):
         self.n_species = len(args)
         self.__species__ = np.full(self.n_species, fill_value=None, dtype=object)
 
+        self.setup_mic()
+
         for i, element in enumerate(args):
             species, n_particles, initial_positions, initial_velocities, initial_acc = element
             self.__species__[i] = species
@@ -244,6 +246,8 @@ class MolDyn(object):
         # TODO: should only iterate over n/2 of the particles and set equal but opposite force
         for particle in self.instances:
             particle.propagate()
+
+        # print(self.instances[0].force[self.sim.current_step])
 
         # UPDATE ALL THE STATISTICAL PROPERTIES
         # TODO: find way to scale velocity using this temperature
@@ -339,6 +343,7 @@ class MolDyn(object):
         self.box_length *= 1 / self.av_particle_sigma
         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
+
         self.time_total *= np.sqrt(self.av_particle_epsilon /
                                    (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))
 
@@ -353,6 +358,9 @@ class MolDyn(object):
         # for type (what a shitty name) in species:
         for particle in self.instances:
             particle.normalize_particle()
+
+        for spec in self.__species__:
+            spec.normalize_class()
 
         # TODO: this should be in a class method, like this redundant class
         for species in self.__species__:

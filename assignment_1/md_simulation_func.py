@@ -4,7 +4,7 @@ from md_simulation_class import MolDyn
 from argon_class import Argon
 
 def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
-                      time_total=0.9e-18, initial_timestep=2e-22,
+                      time_total=0.9e-12, initial_timestep=1e-15,
                       max_steps=1e5, max_real_time=3 * 60,
                       box_length=3.405e-8):
     """
@@ -43,7 +43,7 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
     initial_particle_position += step/2
     initial_particle_position = (np.array(np.meshgrid(initial_particle_position,
                                                       initial_particle_position)).T * box_length / 2).reshape(shape)
-    initial_particle_position += rng.normal(loc=0, scale=5e-2, size=shape) * box_length / 2
+    initial_particle_position += rng.normal(loc=0, scale=1e-2, size=shape) * box_length / 2
 
     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
     initial_particle_acc = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))

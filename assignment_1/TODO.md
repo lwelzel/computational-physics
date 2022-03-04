@@ -14,9 +14,11 @@
     4) set n_dim to 3 and hit run()
     
 - [ ] Implement variable time stepping (probably use adaptive RK45) scale with minimum timestep 
-  (this sounds horribly slow) - simplectic 
+  (this sounds horribly slow) - Symplectic integrator 
 - [ ] Define cut-off distances after which the interactions are not computed
-- [ ] Define interpolant/lookup for LJ force/potential to speed up code
+- [ ] Define interpolant/lookup for LJ force/potential to speed up code- [ ]
+- [ ] Energy plotting functions
+- [ ] Stats plotting functions
 - [ ] numba all of this (not sure if this works with OOP)
 - [ ] multithread (numba) all of this (not sure if this works with OOP)
 
