@@ -42,11 +42,15 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
     # TODO: implement rough sphere packing for even distribution - eazypeazy NP-hard
     # shitty approach for square/cube numbers of particles below - OF COURSE ONLY WORKS FOR SQUARES
     initial_particle_position, step = np.linspace(-1, 1, int((n_particles)**(1/n_dim)), endpoint=False, retstep=True)
+    initial_particle_position += step/2
     
     dim_list=[]
     for dim in range(n_dim):
     	dim_list.append(initial_particle_position)
 	
+<<<<<<< HEAD
+    initial_particle_position = (np.array(np.meshgrid(*dim_list)).T * box_length / 2).reshape(shape)
+=======
     initial_particle_position += step/2
 <<<<<<< HEAD
     initial_particle_position = (np.array(np.meshgrid(initial_particle_position,
@@ -54,6 +58,7 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
     initial_particle_position += rng.normal(loc=0, scale=1e-2, size=shape) * box_length / 2
 =======
     initial_particle_position = (np.array(np.meshgrid(*dim_array)).T * box_length / 2).reshape(shape)
+>>>>>>> e75fd88795d0e9f0c35945d00d6d0d48224e2141
     initial_particle_position += rng.normal(loc=0, scale=5e-2, size=shape) * box_length / 2
 >>>>>>> dev_lukas
 
@@ -81,7 +86,7 @@ def main():
     :return:
     """
     intro()
-    set_up_simulation(n_particles=9, n_dim=2)
+    set_up_simulation(n_particles=8, n_dim=3)
     run_md_simulation()
     return
 

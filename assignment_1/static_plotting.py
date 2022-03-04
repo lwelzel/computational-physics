@@ -71,13 +71,27 @@ def plotly_3d_static(pos):
 
 def mpl_strict_2d_static(pos):
     assert isinstance(pos, np.ndarray), 'Do not accept anything but np.ndarrays'
-    assert pos.shape[2] == 2, "This method is strictly for 2D problems at this point"
-
-    fig, ax = plt.subplots(nrows=1, ncols=1,
+    assert pos.shape[2] <= 3, "This method is strictly for 2D or 3D problems at this point"
+    assert pos.shape[2] > 1, "This method is strictly for 2D or 3D problems at this point"
+    
+    if pos.shape[2] == 2:
+    	n_rows=1
+    	n_cols=1
+    	n_plots=[0]
+    elif pos.shape[2] == 3:
+    	n_rows=2
+    	n_cols=2
+    	n_plots=[0,2,3]
+	
+    fig, axs = plt.subplots(nrows=n_rows, ncols=n_cols,
                            constrained_layout=True, subplot_kw={'aspect': 1},
                            # sharex=True, sharey=True,
-                           figsize=(10, 10))
+                           figsize=(7, 7))
     # structure  is (particles, steps, n_dims, 1)
+    
+    
+    axs[0,1].axis('off')
+    axes=axs.flatten()
 
     # sizes of markers, last position is fat
     size = np.ones(len(pos[0]))
@@ -95,44 +109,64 @@ def mpl_strict_2d_static(pos):
     cpos = np.linspace(0, 1, len(pos)+1, endpoint=True)
     for i, c_start in enumerate(cpos[:-1]):
         colors[i] = cmap(np.linspace(c_start, cpos[i+1], len(pos[0])))
-
-    for i, (particle, color) in enumerate(zip(pos, colors)):
-        ax.scatter(*np.reshape(particle,
-                               newshape=(len(particle), -1)).T,
-                   s=size,
-                   c=color,
-                   alpha=alpha,
-                   # label=f"P{i:03}"
-                   )
-
-
-
-    # AXIS TICK LABELS
-    max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
-    ax.set_xlim(-max, max)
-    ax.set_ylim(-max, max)
-
+    
+    #for Plot labels
     label_format = '{:.0f}'
     n_ticks = 5
-    ax.set_xlabel(r'$\frac{r_{x}}{\sigma}$ [-]')
-    ax.set_ylabel(r'$\frac{r_{y}}{\sigma}$ [-]')
+    
+    for plt_idx in n_plots:
+    	ax=axes[plt_idx]
+    	if plt_idx == 0: #XY Plane
+    		for i, (particle, color) in enumerate(zip(pos, colors)):
+    			ax.scatter(*np.reshape(particle[:,[0,1]],newshape=(len(particle), -1)).T, s=size, c=color, alpha=alpha)
+    			if len(n_plots) > 1:
+    				ax.set_title('Projection onto XY Plane')
+    				ax.set_xlabel(r'$\frac{r_{x}}{\sigma}$ [-]')
+    				ax.set_ylabel(r'$\frac{r_{y}}{\sigma}$ [-]')
+    	
+    	if plt_idx == 2: #XZ Plane
+        	for i, (particle, color) in enumerate(zip(pos, colors)):
+        		ax.scatter(*np.reshape(particle[:,[0,2]],newshape=(len(particle), -1)).T, s=size, c=color, alpha=alpha)
+        		ax.set_title('Projection onto XZ Plane')
+        		ax.set_xlabel(r'$\frac{r_{x}}{\sigma}$ [-]')
+        		ax.set_ylabel(r'$\frac{r_{z}}{\sigma}$ [-]')
+    	
+    	if plt_idx == 3: #YZ Plane
+    		for i, (particle, color) in enumerate(zip(pos, colors)):
+    			ax.scatter(*np.reshape(particle[:,[1,2]],newshape=(len(particle), -1)).T, s=size, c=color, alpha=alpha)
+    			ax.set_title('Projection onto YZ Plane')
+    			ax.set_xlabel(r'$\frac{r_{y}}{\sigma}$ [-]')
+    			ax.set_ylabel(r'$\frac{r_{z}}{\sigma}$ [-]')
+    			
+    	# AXIS TICK LABELS
+    	max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
+    	ax.set_xlim(-max, max)
+    	ax.set_ylim(-max, max)
+    	
+    	rect = mpl.patches.Rectangle((-50, -50), 100, 100, linewidth=1, edgecolor='k', facecolor='none', label="Bounding MCI Box")
+    	
+    	#Add the patch to the Axes
+    	ax.add_patch(rect)
+    	
+    	#ANNOTATIONS
+    	ax.legend()
 
-    rect = mpl.patches.Rectangle((-50, -50), 100, 100, linewidth=1,
-                                 edgecolor='k', facecolor='none',
-                                 label="Bounding MCI Box")
+        
+    	
+    	
+    	# for i, (particle, color) in enumerate(zip(pos, colors)):
+#         	ax.scatter(*np.reshape(particle,
+#                                newshape=(len(particle), -1)).T,
+#                    s=size,
+#                    c=color,
+#                    alpha=alpha,
+#                    # label=f"P{i:03}"
+#                    )
 
-    # Add the patch to the Axes
-    ax.add_patch(rect)
 
-    # ANNOTATIONS
-    ax.legend()
-
-    # GLOBAL
-    ax.set_title(
-        f'Argon: LJ-Potential\n'
-        r'$by~L. Welzel~and~C. Slaughter$',
-        fontsize=11)
-    fig.suptitle(f'MD Simulation', fontsize=20, weight="bold")
+    #fig.suptitle(f'MD Simulation', fontsize=20, weight="bold")
+    fig.suptitle(f'Argon: LJ-Potential\n' r'$by~L. Welzel~and~C. Slaughter$', fontsize=20, weight="bold")
+    
     plt.savefig("MD_Argon_strict_2D.png", dpi=300, format="png", metadata=None,
         facecolor='auto', edgecolor='auto')
     plt.show()
