@@ -32,6 +32,8 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
 
     # general
     shape = (n_particles, n_dim, 1)
+    
+    #test
 
     # setup rng
     rng = np.random.default_rng()
@@ -39,11 +41,21 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
     # TODO: np.mgrid is more efficient
     # TODO: implement rough sphere packing for even distribution - eazypeazy NP-hard
     # shitty approach for square/cube numbers of particles below - OF COURSE ONLY WORKS FOR SQUARES
-    initial_particle_position, step = np.linspace(-1, 1, int(np.sqrt(n_particles)), endpoint=False, retstep=True)
+    initial_particle_position, step = np.linspace(-1, 1, int((n_particles)**(1/n_dim)), endpoint=False, retstep=True)
+    
+    dim_list=[]
+    for dim in range(n_dim):
+    	dim_list.append(initial_particle_position)
+	
     initial_particle_position += step/2
+<<<<<<< HEAD
     initial_particle_position = (np.array(np.meshgrid(initial_particle_position,
                                                       initial_particle_position)).T * box_length / 2).reshape(shape)
     initial_particle_position += rng.normal(loc=0, scale=1e-2, size=shape) * box_length / 2
+=======
+    initial_particle_position = (np.array(np.meshgrid(*dim_array)).T * box_length / 2).reshape(shape)
+    initial_particle_position += rng.normal(loc=0, scale=5e-2, size=shape) * box_length / 2
+>>>>>>> dev_lukas
 
     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
     initial_particle_acc = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
@@ -69,7 +81,7 @@ def main():
     :return:
     """
     intro()
-    set_up_simulation()
+    set_up_simulation(n_particles=9, n_dim=2)
     run_md_simulation()
     return
 
