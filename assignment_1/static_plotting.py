@@ -1,6 +1,6 @@
 import numpy as np
 import h5py
-import plotly.graph_objects as go
+# import plotly.graph_objects as go
 import matplotlib as mpl
 from matplotlib import cm
 import matplotlib.pyplot as plt

@@ -17,9 +17,9 @@ class Argon(Particle):
 
     # PARTICLE PARAMETERS
     particle_name = "Argon_Particle"
-    particle_mass = 39.95 * 1.6605402e-27            # kg            # Argon Mass
-    particle_internal_energy = 119.8 * Constants.bk  # J or kg*m2/s2 # epsilon
-    particle_sigma = 3.405e-10                       # m             # ref scale (?)
+    particle_mass = 6.6e-26               # kg            # Argon Mass
+    particle_internal_energy = 1.654e-21  # J or kg*m2/s2 # epsilon
+    particle_sigma = 3.405e-10            # m             # ref scale (?)
 
     # normalization
     mass = particle_mass
