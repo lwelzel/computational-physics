@@ -238,9 +238,9 @@ class Particle(object):
         self.set_resulting_force()
 
     def reset_lap(self):
-        self.pos[0] = self.pos[-1]
-        self.vel[0] = self.vel[-1]
-        self.force[0] = self.force[-1]
+        self.pos[0] = self.pos[self.sim.current_step]
+        self.vel[0] = self.vel[self.sim.current_step]
+        self.force[0] = self.force[self.sim.current_step]
 
     @classmethod
     def normalize_class(cls):

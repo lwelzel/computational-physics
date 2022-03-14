@@ -29,10 +29,26 @@ class MolDyn(object):
                  box_length,
                  time_total, initial_timestep=0,
                  max_steps: int = int(1e6), max_real_time=3*60,
+                 temperature=0.5, density=1.2,
                  file_location=Path(""),
                  name: str = "MD_simulation",
                  **kwargs):
-        super(MolDyn, self).__init__(**kwargs)
+        """
+
+        :param n_particles:
+        :param n_dim:
+        :param n_steps:
+        :param box_length:
+        :param time_total:
+        :param initial_timestep:
+        :param max_steps:
+        :param max_real_time:
+        :param temperature: in normalized units
+        :param file_location:
+        :param name:
+        :param kwargs:
+        """
+        super(MolDyn, self).__init__()
 
         # META PROPERTIES
         # give instance to class
@@ -121,6 +137,7 @@ class MolDyn(object):
         self.scale_velocity = np.ones(self.n_steps)
         self.temperature = np.zeros(self.n_steps)
         self.kinetic_energy = np.zeros(self.n_steps)
+
         self.potential_energy = np.zeros(self.n_steps)
         self.pressure = np.zeros(self.n_steps)
         self.density = np.zeros(self.n_steps)
@@ -129,6 +146,10 @@ class MolDyn(object):
         self.av_particle_mass = 1
         self.av_particle_sigma = 1
         self.av_particle_epsilon = 1
+
+        # CONTROL PROPERTIES
+        self.target_temperature = temperature
+        self.target_kinetic_energy = (self.n_dim - 1) * 3 / 2 * 1 * self.target_temperature
 
     def __repr__(self):
         return f"\nMolecular Dynamics Simulation\n" \
@@ -174,6 +195,32 @@ class MolDyn(object):
         # check if both self.__species__ and self.__instances__ are full (no None)
 
         self.normalize_problem()
+
+        # rescale the problem until relaxed
+        rescale = np.inf
+        threshold = 0.01
+        relaxation_steps = 25
+        while not np.allclose(rescale, 1., rtol=0., atol=threshold):
+            for __ in np.arange(relaxation_steps):
+                self.tick()
+
+            rescale = self.rescale_velocity()  # resets particle history
+            self.current_step = 0
+            # print(f"Reset.\n"
+            #       f"\t Error: {rescale}")
+
+        ### save simulation metadata to h5 file
+        meta_dict = {"n_particles": self.n_particles,
+                     "n_dim": self.n_dim,
+                     "time_total": self.time_total,
+                     "box_length": self.box_length,
+                     "timestep": self.current_timestep
+                     }
+
+        # Store metadata in hdf5 file
+        for k in meta_dict.keys():
+            self.file.attrs[k] = meta_dict[k]
+
 
     def run(self):
         """
@@ -252,7 +299,7 @@ class MolDyn(object):
         # UPDATE ALL THE STATISTICAL PROPERTIES
         # TODO: find way to scale velocity using this temperature
         #  use that the last step in the solution array is NOT iterated on!
-        self.temperature[self.current_step + 1] = self.get_temperature()
+        # self.temperature[self.current_step + 1] = self.get_temperature()
 
         # for each particle in instances
         # propagate with each other particle
@@ -368,18 +415,21 @@ class MolDyn(object):
             species.sigma = 1
             species.internal_energy = 1
             species.bk = 1
-
-
         self.setup_mic()
 
-    def get_temperature(self):
-        for particle in self.instances:
-            particle.v_vel[:] = particle.vel[self.current_step] * self.box_length
-            self.kinetic_energy[self.current_step] += 0.5 *\
-                                                    np.einsum('ij,ij->j',
-                                                              particle.v_vel[:],
-                                                              particle.v_vel[:])
+    def track_properties(self):
+        # TODO: track temperature
+        # TODO: track energy
+        return
 
-        self.kinetic_energy[self.current_step] *= 1 / self.n_active
-        return self.kinetic_energy[self.current_step] / self.n_dim
+    def get_ekin(self):
+        return 0.5 * np.sum([particle.mass * np.linalg.norm(particle.vel[self.current_step])
+                             for particle in self.__instances__])
+
+    def rescale_velocity(self):
+        scale = np.sqrt(self.target_kinetic_energy / self.get_ekin())
+        for particle in self.__instances__:
+            particle.vel *= scale
+            particle.reset_lap()
+        return scale
 

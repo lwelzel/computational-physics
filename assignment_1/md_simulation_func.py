@@ -3,10 +3,11 @@ from pathlib import Path
 from md_simulation_class import MolDyn
 from argon_class import Argon
 
-def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
-                      time_total=0.9e-12, initial_timestep=1e-15,
+def set_up_simulation(n_particles=8, n_dim=3, n_steps=1000,
+                      time_total=0.9e-10, initial_timestep=1e-14,
                       max_steps=1e5, max_real_time=3 * 60,
-                      box_length=3.405e-8):
+                      box_length=3.405e-8,
+                      temperature=0.5, density=1.2):
     """
 
     :param n_particles:
@@ -27,6 +28,7 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
            box_length=box_length,
            time_total=time_total, initial_timestep=initial_timestep,
            max_steps=max_steps, max_real_time=max_real_time,
+           temperature=temperature, density=density,
            file_location=Path(""),
            name="MD_simulation")
 
@@ -46,21 +48,11 @@ def set_up_simulation(n_particles=9, n_dim=2, n_steps=1000,
     
     dim_list=[]
     for dim in range(n_dim):
-    	dim_list.append(initial_particle_position)
-	
-<<<<<<< HEAD
+        dim_list.append(initial_particle_position)
+
+
     initial_particle_position = (np.array(np.meshgrid(*dim_list)).T * box_length / 2).reshape(shape)
-=======
-    initial_particle_position += step/2
-<<<<<<< HEAD
-    initial_particle_position = (np.array(np.meshgrid(initial_particle_position,
-                                                      initial_particle_position)).T * box_length / 2).reshape(shape)
-    initial_particle_position += rng.normal(loc=0, scale=1e-2, size=shape) * box_length / 2
-=======
-    initial_particle_position = (np.array(np.meshgrid(*dim_array)).T * box_length / 2).reshape(shape)
->>>>>>> e75fd88795d0e9f0c35945d00d6d0d48224e2141
     initial_particle_position += rng.normal(loc=0, scale=5e-2, size=shape) * box_length / 2
->>>>>>> dev_lukas
 
     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
     initial_particle_acc = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
@@ -86,7 +78,7 @@ def main():
     :return:
     """
     intro()
-    set_up_simulation(n_particles=8, n_dim=3)
+    set_up_simulation()
     run_md_simulation()
     return
 
