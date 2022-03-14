@@ -91,7 +91,7 @@ def mpl_strict_2d_static(pos):
     
     
     if pos.shape[2] == 3:
-    	axs[0,1].axis('off')
+    	axes[0,1].axis('off')
     	axes=axes.flatten()
     	
 
@@ -115,6 +115,13 @@ def mpl_strict_2d_static(pos):
     #for Plot labels
     label_format = '{:.0f}'
     n_ticks = 5
+    
+    #For MCI box
+    f = open('norm_boxlength.txt','r')
+    length = float(f.read())
+    #print(length)
+    f.close
+    max = length * 1.05
     
     for plt_idx in n_plots:
     	if pos.shape[2] == 3:
@@ -144,11 +151,11 @@ def mpl_strict_2d_static(pos):
     			ax.set_ylabel(r'$\frac{r_{z}}{\sigma}$ [-]')
     			
     	# AXIS TICK LABELS
-    	max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
+    	#max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
     	ax.set_xlim(-max, max)
     	ax.set_ylim(-max, max)
-    	
-    	rect = mpl.patches.Rectangle((-50, -50), 100, 100, linewidth=1, edgecolor='k', facecolor='none', label="Bounding MCI Box")
+        
+    	rect = mpl.patches.Rectangle((-length/2, -length/2), length, length, linewidth=1, edgecolor='k', facecolor='none', label="Bounding MCI Box")
     	
     	#Add the patch to the Axes
     	ax.add_patch(rect)
