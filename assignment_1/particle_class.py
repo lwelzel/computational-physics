@@ -133,7 +133,8 @@ class Particle(object):
             force, potential = self.get_force_potential(other, future_step)
             # no idea why 0.5, maybe because of two particles?
             # Does not matter since we are only interested in the relative quantities at the moment
-            self.sim.potential_energy[self.sim.current_step + future_step] += 0.5 * potential
+            # TODO: half it here because it evaluates it twice for every particle pair
+            self.sim.potential_energy[self.sim.current_step + future_step] += 0.5 * 0.5 * potential * 
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
 
     def get_force_potential(self, other, future_step=0):

@@ -137,7 +137,7 @@ class MolDyn(object):
         self.scale_velocity = np.ones(self.n_steps)
         self.temperature = np.zeros(self.n_steps)
         self.kinetic_energy = np.zeros(self.n_steps)
-
+        self.virial = np.zeros(self.n_steps)
         self.potential_energy = np.zeros(self.n_steps)
         self.pressure = np.zeros(self.n_steps)
         self.density = np.zeros(self.n_steps)

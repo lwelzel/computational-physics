@@ -158,16 +158,6 @@ def mpl_strict_2d_static(pos):
         # ANNOTATIONS
         ax.legend()
 
-    # for i, (particle, color) in enumerate(zip(pos, colors)):
-    #         	ax.scatter(*np.reshape(particle,
-    #                                newshape=(len(particle), -1)).T,
-    #                    s=size,
-    #                    c=color,
-    #                    alpha=alpha,
-    #                    # label=f"P{i:03}"
-    #                    )
-
-    # fig.suptitle(f'MD Simulation', fontsize=20, weight="bold")
     fig.suptitle(f'Argon: LJ-Potential\n' r'$by~L. Welzel~and~C. Slaughter$', fontsize=20, weight="bold")
 
     plt.savefig("MD_Argon_strict_2D.png", dpi=300, format="png", metadata=None,

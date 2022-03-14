@@ -48,9 +48,14 @@ def set_up_simulation(n_particles=8, n_dim=3, n_steps=1000,
     
     dim_list=[]
     for dim in range(n_dim):
+<<<<<<< HEAD
         dim_list.append(initial_particle_position)
 
 
+=======
+    	dim_list.append(initial_particle_position)
+	
+>>>>>>> dev_lukas
     initial_particle_position = (np.array(np.meshgrid(*dim_list)).T * box_length / 2).reshape(shape)
     initial_particle_position += rng.normal(loc=0, scale=5e-2, size=shape) * box_length / 2
 
@@ -78,7 +83,11 @@ def main():
     :return:
     """
     intro()
+<<<<<<< HEAD
     set_up_simulation()
+=======
+    set_up_simulation(n_particles=9, n_dim=2)
+>>>>>>> dev_lukas
     run_md_simulation()
     return
 
