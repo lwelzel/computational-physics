@@ -26,7 +26,7 @@ class MolDyn(object):
 
     def __init__(self,
                  n_particles: int, n_dim: int, n_steps: int,
-                 box_length,
+                 init_density,
                  time_total, initial_timestep=0,
                  max_steps: int = int(1e6), max_real_time=3*60,
                  temperature=0.5, density=1.2,
@@ -64,7 +64,9 @@ class MolDyn(object):
         self.time_total = time_total
         self.max_real_time = max_real_time
         self.time_total = time_total
-        self.box_length = box_length
+        self.init_density = init_density
+        
+        self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
 
         # SAVE PARAMETERS
         self.file_location = Path(file_location) / (name + ".h5")
@@ -146,6 +148,7 @@ class MolDyn(object):
         self.av_particle_mass = 1
         self.av_particle_sigma = 1
         self.av_particle_epsilon = 1
+        
 
         # CONTROL PROPERTIES
         self.target_temperature = temperature
@@ -174,7 +177,7 @@ class MolDyn(object):
 
         self.n_species = len(args)
         self.__species__ = np.full(self.n_species, fill_value=None, dtype=object)
-
+        
         self.setup_mic()
 
         for i, element in enumerate(args):
@@ -193,7 +196,7 @@ class MolDyn(object):
                 species(self, initial_position, initial_velocity, initial_acc)
 
         # check if both self.__species__ and self.__instances__ are full (no None)
-
+        
         self.normalize_problem()
 
         # rescale the problem until relaxed
@@ -317,6 +320,7 @@ class MolDyn(object):
         # shape     = (max_steps,   n_particles,    n_dim)
         # chunks    = (n_steps,     n_particles,    n_dim)
         # save particle positions
+        
 
         for i, particle in enumerate(tqdm(self.instances,
                                           desc="\tSaving simulation progress (particles)",
@@ -382,12 +386,20 @@ class MolDyn(object):
                                 https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
         :sets: normalized parameters
         """
+        
+        
         self.av_particle_mass = np.mean([particle.particle_mass for particle in self.instances])
         self.av_particle_sigma = np.mean([particle.sigma for particle in self.instances])
         self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
         # bk = Constants.bk
-
+        
         self.box_length *= 1 / self.av_particle_sigma
+        
+        #save box length for plotting purposes:
+        f = open('norm_boxlength.txt','w')
+        f.write(str(self.box_length))
+        f.close
+        
         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
 
