@@ -26,7 +26,6 @@ class MolDyn(object):
 
     def __init__(self,
                  n_particles: int, n_dim: int, n_steps: int,
-                 init_density,
                  time_total, initial_timestep=0,
                  max_steps: int = int(1e6), max_real_time=3*60,
                  temperature=0.5, density=1.2,
@@ -64,7 +63,7 @@ class MolDyn(object):
         self.time_total = time_total
         self.max_real_time = max_real_time
         self.time_total = time_total
-        self.init_density = init_density
+        self.init_density = density
         
         self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
 

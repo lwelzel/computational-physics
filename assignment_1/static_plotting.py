@@ -83,7 +83,6 @@ def mpl_strict_2d_static(pos):
         n_cols = 1
         n_plots = [0]
     elif pos.shape[2] == 3:
-<<<<<<< HEAD
         n_rows = 2
         n_cols = 2
         n_plots = [0, 2, 3]
@@ -91,28 +90,11 @@ def mpl_strict_2d_static(pos):
     fig, axs = plt.subplots(nrows=n_rows, ncols=n_cols,
                             constrained_layout=True, subplot_kw={'aspect': 1},
                             # sharex=True, sharey=True,
-                            figsize=(7, 7))
+                            figsize=(12, 12))
     # structure  is (particles, steps, n_dims, 1)
 
     axs[0, 1].axis('off')
     axes = axs.flatten()
-=======
-    	n_rows=2
-    	n_cols=2
-    	n_plots=[0,2,3]
-	
-    fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols,
-                           constrained_layout=True, subplot_kw={'aspect': 1},
-                           # sharex=True, sharey=True,
-                           figsize=(7, 7))
-    # structure  is (particles, steps, n_dims, 1)
-    
-    
-    if pos.shape[2] == 3:
-    	axes[0,1].axis('off')
-    	axes=axes.flatten()
-    	
->>>>>>> dev_lukas
 
     # sizes of markers, last position is fat
     size = np.ones(len(pos[0]))
@@ -134,10 +116,19 @@ def mpl_strict_2d_static(pos):
     # for Plot labels
     label_format = '{:.0f}'
     n_ticks = 5
-<<<<<<< HEAD
+
+    # For MCI box
+    f = open('norm_boxlength.txt', 'r')
+    length = float(f.read())
+    # print(length)
+    f.close
+    max = length * 1.05
 
     for plt_idx in n_plots:
-        ax = axes[plt_idx]
+        if pos.shape[2] == 3:
+            ax = axes[plt_idx]
+        else:
+            ax = axes
         if plt_idx == 0:  # XY Plane
             for i, (particle, color) in enumerate(zip(pos, colors)):
                 ax.scatter(*np.reshape(particle[:, [0, 1]], newshape=(len(particle), -1)).T, s=size, c=color,
@@ -164,12 +155,12 @@ def mpl_strict_2d_static(pos):
                 ax.set_ylabel(r'$\frac{r_{z}}{\sigma}$ [-]')
 
         # AXIS TICK LABELS
-        max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
+        # max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
         ax.set_xlim(-max, max)
         ax.set_ylim(-max, max)
 
-        rect = mpl.patches.Rectangle((-50, -50), 100, 100, linewidth=1, edgecolor='k', facecolor='none',
-                                     label="Bounding MCI Box")
+        rect = mpl.patches.Rectangle((-length / 2, -length / 2), length, length, linewidth=1, edgecolor='k',
+                                     facecolor='none', label="Bounding MCI Box")
 
         # Add the patch to the Axes
         ax.add_patch(rect)
@@ -177,70 +168,6 @@ def mpl_strict_2d_static(pos):
         # ANNOTATIONS
         ax.legend()
 
-=======
-    
-    #For MCI box
-    f = open('norm_boxlength.txt','r')
-    length = float(f.read())
-    #print(length)
-    f.close
-    max = length * 1.05
-    
-    for plt_idx in n_plots:
-    	if pos.shape[2] == 3:
-    		ax=axes[plt_idx]
-    	else:
-    		ax=axes
-    	if plt_idx == 0: #XY Plane
-    		for i, (particle, color) in enumerate(zip(pos, colors)):
-    			ax.scatter(*np.reshape(particle[:,[0,1]],newshape=(len(particle), -1)).T, s=size, c=color, alpha=alpha)
-    			if len(n_plots) > 1:
-    				ax.set_title('Projection onto XY Plane')
-    				ax.set_xlabel(r'$\frac{r_{x}}{\sigma}$ [-]')
-    				ax.set_ylabel(r'$\frac{r_{y}}{\sigma}$ [-]')
-    	
-    	if plt_idx == 2: #XZ Plane
-        	for i, (particle, color) in enumerate(zip(pos, colors)):
-        		ax.scatter(*np.reshape(particle[:,[0,2]],newshape=(len(particle), -1)).T, s=size, c=color, alpha=alpha)
-        		ax.set_title('Projection onto XZ Plane')
-        		ax.set_xlabel(r'$\frac{r_{x}}{\sigma}$ [-]')
-        		ax.set_ylabel(r'$\frac{r_{z}}{\sigma}$ [-]')
-    	
-    	if plt_idx == 3: #YZ Plane
-    		for i, (particle, color) in enumerate(zip(pos, colors)):
-    			ax.scatter(*np.reshape(particle[:,[1,2]],newshape=(len(particle), -1)).T, s=size, c=color, alpha=alpha)
-    			ax.set_title('Projection onto YZ Plane')
-    			ax.set_xlabel(r'$\frac{r_{y}}{\sigma}$ [-]')
-    			ax.set_ylabel(r'$\frac{r_{z}}{\sigma}$ [-]')
-    			
-    	# AXIS TICK LABELS
-    	#max = np.power(10, np.ceil(np.log10(np.max(pos)))) * 1.05  # for adding box margin
-    	ax.set_xlim(-max, max)
-    	ax.set_ylim(-max, max)
-        
-    	rect = mpl.patches.Rectangle((-length/2, -length/2), length, length, linewidth=1, edgecolor='k', facecolor='none', label="Bounding MCI Box")
-    	
-    	#Add the patch to the Axes
-    	ax.add_patch(rect)
-    	
-    	#ANNOTATIONS
-    	ax.legend()
-
-        
-    	
-    	
-    	# for i, (particle, color) in enumerate(zip(pos, colors)):
-#         	ax.scatter(*np.reshape(particle,
-#                                newshape=(len(particle), -1)).T,
-#                    s=size,
-#                    c=color,
-#                    alpha=alpha,
-#                    # label=f"P{i:03}"
-#                    )
-
-
-    #fig.suptitle(f'MD Simulation', fontsize=20, weight="bold")
->>>>>>> dev_lukas
     fig.suptitle(f'Argon: LJ-Potential\n' r'$by~L. Welzel~and~C. Slaughter$', fontsize=20, weight="bold")
 
     plt.savefig("MD_Argon_strict_2D.png", dpi=300, format="png", metadata=None,

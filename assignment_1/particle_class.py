@@ -2,6 +2,8 @@ import numpy as np
 from weakref import ref, proxy
 # from scipy.spatial.distance import cdist, euclidean  # slow af
 from sys import version_info
+
+
 # from md_simulation_class import MolDyn
 
 class Particle(object):
@@ -93,10 +95,8 @@ class Particle(object):
     def __repr__(self):
         return f"\nParticle Class __repr__ not implemented.\n"
 
-
     def wrap_d_vector(self):
         self.dpos[:] = (self.dpos + self.sim.box2) % self.sim.box - self.sim.box2
-
 
     def get_distance_vectorA1(self, other, future_step=0):
         """
@@ -134,7 +134,7 @@ class Particle(object):
             # no idea why 0.5, maybe because of two particles?
             # Does not matter since we are only interested in the relative quantities at the moment
             # TODO: half it here because it evaluates it twice for every particle pair
-            self.sim.potential_energy[self.sim.current_step + future_step] += 0.5 * 0.5 * potential * 
+            self.sim.potential_energy[self.sim.current_step + future_step] += 0.5 * 0.5 * potential * 1
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
 
     def get_force_potential(self, other, future_step=0):
@@ -160,8 +160,8 @@ class Particle(object):
         self.set_resulting_force()
         self.pos[self.sim.current_step + 1] = self.dpos
         self.vel[self.sim.current_step + 1] = self.vel[self.sim.current_step] \
-                                                    + self.sim.current_timestep / (2 * self.__class__.mass) \
-                                                    * (self.force[self.sim.current_step])
+                                              + self.sim.current_timestep / (2 * self.__class__.mass) \
+                                              * (self.force[self.sim.current_step])
         return
 
     def propagate_SABA(self):
@@ -194,7 +194,7 @@ class Particle(object):
         :return:
         """
         f, p = None, None
-        vn13 = self.vel[self.sim.current_step] + self.sim.current_timestep/6 * 1
+        vn13 = self.vel[self.sim.current_step] + self.sim.current_timestep / 6 * 1
         return
 
     def propagate_Verlet(self):
@@ -211,9 +211,9 @@ class Particle(object):
         self.pos[self.sim.current_step + 1] = self.dpos
         self.set_resulting_force(future_step=1)
         self.vel[self.sim.current_step + 1] = self.vel[self.sim.current_step] \
-                                                    + self.sim.current_timestep / (2 * self.__class__.mass) \
-                                                    * (self.force[self.sim.current_step]
-                                                       + self.force[self.sim.current_step + 1])
+                                              + self.sim.current_timestep / (2 * self.__class__.mass) \
+                                              * (self.force[self.sim.current_step]
+                                                 + self.force[self.sim.current_step + 1])
 
         return
 
@@ -231,8 +231,8 @@ class Particle(object):
         self.vel *= 1 / np.sqrt(self.__class__.internal_energy /
                                 (self.__class__.particle_mass))
         self.acc *= 1 / self.__class__.sigma * \
-                    1 /(self.__class__.internal_energy /
-                        (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
+                    1 / (self.__class__.internal_energy /
+                         (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
 
         self.force *= self.__class__.sigma / self.__class__.internal_energy
 
@@ -248,15 +248,7 @@ class Particle(object):
         cls.mass = 1
         cls.internal_energy = 1
         cls.sigma = 1
-    
+
     @property
-    def position():
-    	return(self.pos[self.sim.current_step])
-
-
-
-
-
-
-
-
+    def position(self):
+        return (self.pos[self.sim.current_step])
