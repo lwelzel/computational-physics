@@ -33,20 +33,27 @@ def set_up_simulation(n_particles=108, n_dim=3, n_steps=1000,
     # general
     shape = (n_particles, n_dim, 1)
     
+    n_sets = int(np.round((n_particles/4)**(1/3)))
+    #print(n_sets)
     
-    start_pos = np.linspace(-MolDyn.sim.box_length/2, MolDyn.sim.box_length/2, 4)
+    start_pos = np.linspace(-MolDyn.sim.box_length/2, MolDyn.sim.box_length/2, n_sets+1)
     start_pos=start_pos[:-1]
-    pos_change=MolDyn.sim.box_length/8 #half of a quarter of the total box length
+    start_pos = start_pos+(MolDyn.sim.box_length/20) #shifts off box edge
+    pos_change=MolDyn.sim.box_length/2/(n_sets) 
+    #half of the fraction of the total box length established a few lines above
     
+    #print(pos_change)
+    #print(MolDyn.sim.box_length)
     #print(start_pos)
     
     initial_particle_position = np.zeros(shape=shape)
-    initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
+    rng = np.random.default_rng()
+    initial_particle_velocity = 10000*rng.uniform(low=-1, high=1, size=shape)
     initial_particle_acc = np.zeros(shape=shape)
     
     #first_x = start_pos[0]
     #first_y = start_pos[0]
-    first_z = start_pos[0]
+    #first_z = start_pos[0]
     
     idx_count=0
     for idxx, first_x in enumerate(start_pos):
@@ -59,7 +66,6 @@ def set_up_simulation(n_particles=108, n_dim=3, n_steps=1000,
     			set_positions[3] = np.array([first_x+pos_change, first_y, first_z+pos_change]).reshape(3, 1)
     					
     			curr_idx = 4*(idx_count)
-    			print(curr_idx)
     			end_idx = curr_idx+4
     			initial_particle_position[curr_idx:end_idx,:,:]=set_positions
     			

@@ -1,10 +1,11 @@
 import numpy as np
 import h5py
-# import plotly.graph_objects as go
+import plotly.graph_objects as go
 import matplotlib as mpl
 from matplotlib import cm
 import matplotlib.pyplot as plt
 from pathlib import Path
+import pandas as pd
 
 def read_npy_data(loc,):
     """
@@ -67,6 +68,44 @@ def read_h5_data(loc,):
     return samples
 
 def plotly_3d_static(pos):
+	#df = px.data.iris()
+    f = open('norm_boxlength.txt','r')
+    length = float(f.read())
+    f.close
+    half_len = length/2
+
+    #add bounding box:
+    edge1=np.linspace(-half_len,half_len, 50)
+    edge2=np.linspace(-half_len,half_len, 50)
+    edge1,edge2=np.meshgrid(edge1,edge2)
+    
+    plane=half_len*np.ones(edge1.shape)
+
+    plane_color=[[0.0, 'rgb(200,200,200)'], [1.0, 'rgb(200,200,200)']]
+    opacity = .25
+
+    zpos=dict(type='surface', x=edge1, y=edge2, z=plane, opacity = opacity, colorscale=plane_color, showscale=False)
+    zneg=dict(type='surface', x=edge1, y=edge2, z=-plane, opacity = opacity, colorscale=plane_color, showscale=False)
+    xpos=dict(type='surface', x=plane, y=edge2, z=edge1, opacity = opacity, colorscale=plane_color, showscale=False)
+    xneg=dict(type='surface', x=-plane, y=edge2, z=edge1, opacity = opacity, colorscale=plane_color, showscale=False)
+    ypos=dict(type='surface', x=edge1, y=plane, z=edge2, opacity = opacity, colorscale=plane_color, showscale=False)
+    yneg=dict(type='surface', x=edge1, y=-plane, z=edge2, opacity = opacity, colorscale=plane_color, showscale=False)
+
+    fig = go.Figure(data=[xpos,xneg,ypos,yneg,zpos,zneg])
+
+    size = np.ones(len(pos[0]))
+    size[-1] = 5
+    size *= 2
+
+    for idx in range(pos.shape[0]):
+        df=pd.DataFrame(pos[idx])
+        df.columns = ['x', 'y', 'z']
+        curr_atom=go.Scatter3d(x=df['x'], y=df['y'], z=df['z'], mode='markers', marker=dict(size=size, line=dict(width=0)))
+        fig.add_trace(curr_atom)
+
+    fig.update_layout(showlegend=False) 
+    fig.show()
+    
     return
 
 def mpl_strict_2d_static(pos):
@@ -98,7 +137,7 @@ def mpl_strict_2d_static(pos):
     # sizes of markers, last position is fat
     size = np.ones(len(pos[0]))
     size[-1] = 15
-    size *= 1
+    size *= .5
     # alpha
     alpha = np.ones(len(pos[0])) * 0.025
     alpha[-1] = 1
@@ -186,8 +225,8 @@ def mpl_strict_2d_static(pos):
 
 def main():
     pos = read_h5_data(Path("MD_simulation.h5"))
-    mpl_strict_2d_static(pos)
-    # plotly_3d_static(pos)
+    #mpl_strict_2d_static(pos)
+    plotly_3d_static(pos)
 
 if __name__ == "__main__":
     main()

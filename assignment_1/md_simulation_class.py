@@ -51,6 +51,7 @@ class MolDyn(object):
         self.init_density = init_density
         
         self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
+        #print(self.box_length)
 
         # SAVE PARAMETERS
         self.file_location = Path(file_location) / (name + ".h5")
@@ -175,7 +176,7 @@ class MolDyn(object):
                 species(self, initial_position, initial_velocity, initial_acc)
 
         # check if both self.__species__ and self.__instances__ are full (no None)
-        
+        self.setup_mic()
         self.normalize_problem()
 
     def run(self):
@@ -346,12 +347,14 @@ class MolDyn(object):
         self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
         # bk = Constants.bk
         
+        #print(self.av_particle_sigma)
         self.box_length *= 1 / self.av_particle_sigma
         
         #save box length for plotting purposes:
         f = open('norm_boxlength.txt','w')
         f.write(str(self.box_length))
         f.close
+        #print(self.box_length)
         
         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
