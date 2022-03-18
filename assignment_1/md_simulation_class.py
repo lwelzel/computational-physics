@@ -26,12 +26,17 @@ class MolDyn(object):
 
     def __init__(self,
                  n_particles: int, n_dim: int, n_steps: int,
+<<<<<<< HEAD
+=======
+                 init_density,
+>>>>>>> dev_lukas
                  time_total, initial_timestep=0,
                  max_steps: int = int(1e6), max_real_time=3*60,
                  temperature=0.5, density=1.2,
                  file_location=Path(""),
                  name: str = "MD_simulation",
                  **kwargs):
+<<<<<<< HEAD
         """
 
         :param n_particles:
@@ -48,6 +53,9 @@ class MolDyn(object):
         :param kwargs:
         """
         super(MolDyn, self).__init__()
+=======
+        super(MolDyn, self).__init__(**kwargs) #box_length,
+>>>>>>> dev_lukas
 
         # META PROPERTIES
         # give instance to class
@@ -63,9 +71,16 @@ class MolDyn(object):
         self.time_total = time_total
         self.max_real_time = max_real_time
         self.time_total = time_total
+<<<<<<< HEAD
         self.init_density = density
         
         self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
+=======
+        self.init_density = init_density
+        
+        self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
+        #print(self.box_length)
+>>>>>>> dev_lukas
 
         # SAVE PARAMETERS
         self.file_location = Path(file_location) / (name + ".h5")
@@ -148,10 +163,13 @@ class MolDyn(object):
         self.av_particle_sigma = 1
         self.av_particle_epsilon = 1
         
+<<<<<<< HEAD
 
         # CONTROL PROPERTIES
         self.target_temperature = temperature
         self.target_kinetic_energy = (self.n_dim - 1) * 3 / 2 * 1 * self.target_temperature
+=======
+>>>>>>> dev_lukas
 
     def __repr__(self):
         return f"\nMolecular Dynamics Simulation\n" \
@@ -195,7 +213,11 @@ class MolDyn(object):
                 species(self, initial_position, initial_velocity, initial_acc)
 
         # check if both self.__species__ and self.__instances__ are full (no None)
+<<<<<<< HEAD
         
+=======
+        self.setup_mic()
+>>>>>>> dev_lukas
         self.normalize_problem()
 
         # rescale the problem until relaxed
@@ -392,12 +414,20 @@ class MolDyn(object):
         self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
         # bk = Constants.bk
         
+<<<<<<< HEAD
+=======
+        #print(self.av_particle_sigma)
+>>>>>>> dev_lukas
         self.box_length *= 1 / self.av_particle_sigma
         
         #save box length for plotting purposes:
         f = open('norm_boxlength.txt','w')
         f.write(str(self.box_length))
         f.close
+<<<<<<< HEAD
+=======
+        #print(self.box_length)
+>>>>>>> dev_lukas
         
         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass

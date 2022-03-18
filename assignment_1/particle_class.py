@@ -248,7 +248,22 @@ class Particle(object):
         cls.mass = 1
         cls.internal_energy = 1
         cls.sigma = 1
+<<<<<<< HEAD
 
     @property
     def position(self):
         return (self.pos[self.sim.current_step])
+=======
+    
+    @property
+    def position():
+    	return(self.pos[self.sim.current_step])
+
+
+
+
+
+
+
+
+>>>>>>> dev_lukas
