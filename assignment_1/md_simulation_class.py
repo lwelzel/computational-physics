@@ -57,8 +57,14 @@ class MolDyn(object):
         self.file_location = Path(file_location) / (name + ".h5")
         self.file_location = self.file_location
         self.file = h5py.File(self.file_location, "w")
-        self.__h5_data_name__ = "position"
-        self.file.create_dataset(self.__h5_data_name__,
+        self.__h5_position_name__ = "position"
+        self.file.create_dataset(self.__h5_position_name__,
+                                 compression="gzip",
+                                 shape=(self.n_steps, self.n_particles, self.n_dim),
+                                 chunks=(self.n_steps, self.n_particles, self.n_dim),
+                                 maxshape=(self.max_steps, self.n_particles, self.n_dim),
+                                 dtype=np.float64)
+        self.file.create_dataset("velocity",
                                  compression="gzip",
                                  shape=(self.n_steps, self.n_particles, self.n_dim),
                                  chunks=(self.n_steps, self.n_particles, self.n_dim),
@@ -225,7 +231,6 @@ class MolDyn(object):
         # each block will be n_steps long so dont set this unreasonably high
         # this should significantly speed up our program
         pbar1 = tqdm(total=100,
-                     desc='Progress',
                      leave=False)
         self.sim_running = True
         while True:
@@ -286,15 +291,9 @@ class MolDyn(object):
         for particle in self.instances:
             particle.propagate()
 
-        # print(self.instances[0].force[self.sim.current_step])
-
-        # UPDATE ALL THE STATISTICAL PROPERTIES
-        # TODO: find way to scale velocity using this temperature
-        #  use that the last step in the solution array is NOT iterated on!
+        # UPDATE STATISTICAL PROPERTIES
         # self.temperature[self.current_step + 1] = self.get_temperature()
 
-        # for each particle in instances
-        # propagate with each other particle
         self.time += self.current_timestep
         self.current_step += 1
         self.current_step_total += 1
@@ -312,7 +311,14 @@ class MolDyn(object):
         print("Saving simulation progress (particles)")
         for i, particle in enumerate(tqdm(self.instances,
                                           leave=False)):
-            self.file[self.__h5_data_name__][-self.n_steps:, i] = particle.pos.reshape((self.n_steps, self.n_dim))
+            self.file[self.__h5_position_name__][-self.n_steps:, i] = particle.pos.reshape((self.n_steps, self.n_dim))
+
+        # prepare potential for virial for pressure
+        # multiply by 0.5^2 because we iterate over all pairs (i.e. all pairs get counted twice)
+        # self.potential_energy = self.potential_energy * 0.5 ** 2
+        # pressure in dimensionless units
+        # assume that we preserve the target temperature during the simulation
+        self.pressure = 1 - 1 / (3 * self.n_dim * 1 * self.target_temperature) * self.potential_energy * 0.5 ** 2
 
         # save statistical properties
         print("Saving simulation progress (statistics)")
@@ -329,7 +335,7 @@ class MolDyn(object):
             n = i
 
         if self.sim_running:
-            self.file[self.__h5_data_name__].resize((self.file[self.__h5_data_name__].shape[0] + self.n_steps), axis=0)
+            self.file[self.__h5_position_name__].resize((self.file[self.__h5_position_name__].shape[0] + self.n_steps), axis=0)
             for i in np.arange(n):
                 self.file[self.__h5_stat_data_names__[i]].resize(
                     (self.file[self.__h5_stat_data_names__[i]].shape[0] + self.n_steps), axis=0)

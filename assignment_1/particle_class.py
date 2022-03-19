@@ -134,7 +134,7 @@ class Particle(object):
             # no idea why 0.5, maybe because of two particles?
             # Does not matter since we are only interested in the relative quantities at the moment
             # TODO: half it here because it evaluates it twice for every particle pair
-            self.sim.potential_energy[self.sim.current_step + future_step] += 0.5 * 0.5 * potential * 1
+            self.sim.potential_energy[self.sim.current_step + future_step] += potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
 
     def get_force_potential(self, other, future_step=0):
@@ -148,7 +148,7 @@ class Particle(object):
 
     def potential_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
+        return - 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def propagate_explicit_euler(self):
         """"

@@ -63,18 +63,19 @@ def read_h5_data(loc, ):
         #
         # # Get the data
         # samples = list(file[a_group_key])
-        samples = np.array(file["position"])
+        pos = np.array(file["position"])
+        vel = np.array(file["velocity"])
+        pressure = np.array(file["pressure"])
+        header = dict(file.attrs)
 
-    samples = np.swapaxes(samples, 0, 1)
+    pos = np.swapaxes(pos, 0, 1)
+    vel = np.swapaxes(vel, 0, 1)
 
-    return samples
+    return header, pos, vel, pressure
 
 
-def plotly_3d_static(pos):
-    # df = px.data.iris()
-    f = open('norm_boxlength.txt', 'r')
-    length = float(f.read())
-    f.close
+def plotly_3d_static(pos, header):
+    length = header["box_length"]
     half_len = length / 2
 
     # add bounding box:
@@ -113,7 +114,7 @@ def plotly_3d_static(pos):
     return
 
 
-def mpl_strict_2d_static(pos):
+def mpl_strict_2d_static(pos, header):
     assert isinstance(pos, np.ndarray), 'Do not accept anything but np.ndarrays'
     assert pos.shape[2] <= 3, "This method is strictly for 2D or 3D problems at this point"
     assert pos.shape[2] > 1, "This method is strictly for 2D or 3D problems at this point"
@@ -159,10 +160,8 @@ def mpl_strict_2d_static(pos):
     n_ticks = 5
 
     # For MCI box
-    f = open('norm_boxlength.txt', 'r')
-    length = float(f.read())
-    # print(length)
-    f.close
+    length = header["box_length"]
+    half_len = length / 2
     max = length * 1.05
 
     for plt_idx in n_plots:
@@ -217,18 +216,19 @@ def mpl_strict_2d_static(pos):
     return
 
 
-def mpl_plot_ekin(sim):
+def mpl_plot_pair_corr(sim):
     return
 
 
-def mpl_plot_stats(sim):
+def mpl_plot_pressure(sim):
     return
 
 
 def main():
-    pos = read_h5_data(Path("MD_simulation.h5"))
-    # mpl_strict_2d_static(pos)
-    plotly_3d_static(pos)
+    header, pos, vel, pressure = read_h5_data(Path("MD_simulation.h5"))
+    print(header)
+    # mpl_strict_2d_static(pos, header)
+    plotly_3d_static(pos, header)
 
 
 if __name__ == "__main__":
