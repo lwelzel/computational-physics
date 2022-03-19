@@ -226,6 +226,7 @@ class Particle(object):
         """
         # TODO: make this a class method which then iterates over all particles of a species
         # iterate over particles and normalize values
+        # TODO: remove when passing normalized box length/ positions
         self.pos *= 1 / self.__class__.sigma
         # TODO: implement equipartition, the normalization is wrong here!
         self.vel *= 1 / np.sqrt(self.__class__.internal_energy /
