@@ -14,6 +14,7 @@ def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
     # TODO:
 
     # META
+    rng = np.random.default_rng()
     MolDyn(n_particles=n_particles, n_dim=n_dim, n_steps=n_steps,
            time_total=time_total, initial_timestep=initial_timestep,
            max_steps=max_steps, max_real_time=max_real_time,
@@ -25,18 +26,13 @@ def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
     shape = (n_particles, n_dim, 1)
 
 
-    n_sets = int(np.round((n_particles / 4) ** (1 / 3)))
-
-    start_pos = np.linspace(-MolDyn.sim.box_length / 2, MolDyn.sim.box_length / 2, n_sets + 1)
-    start_pos = start_pos[:-1]
-    start_pos = start_pos + (MolDyn.sim.box_length / 20)  # shifts off box edge
-    pos_change = MolDyn.sim.box_length / 2 / (n_sets)
-    # half of the fraction of the total box length established a few lines above
-
     initial_particle_position = np.zeros(shape=shape)
-    rng = np.random.default_rng()
     initial_particle_velocity = rng.normal(0, 1, size=shape)
     initial_particle_acc = np.zeros(shape=shape)
+
+    # first_x = start_pos[0]
+    # first_y = start_pos[0]
+    first_z = start_pos[0]
 
     idx_count = 0
     for idxx, first_x in enumerate(start_pos):
@@ -47,14 +43,11 @@ def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
                 set_positions[1] = np.array([first_x, first_y + pos_change, first_z + pos_change]).reshape(3, 1)
                 set_positions[2] = np.array([first_x + pos_change, first_y + pos_change, first_z]).reshape(3, 1)
                 set_positions[3] = np.array([first_x + pos_change, first_y, first_z + pos_change]).reshape(3, 1)
-
                 curr_idx = 4 * (idx_count)
                 end_idx = curr_idx + 4
                 initial_particle_position[curr_idx:end_idx, :, :] = set_positions
 
                 idx_count += 1
-
-    # print(set_positions)
 
     #     #Old Particle Position Setup
     #     # setup rng
@@ -76,18 +69,19 @@ def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
     #
     #     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
     #     initial_particle_acc = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
-    #
 
     argon = (Argon, n_particles, initial_particle_position, initial_particle_velocity, initial_particle_acc)
-    MolDyn.sim.set_up_simulation(argon)
+    print('Initialization complete.')
 
-    print('Relaxation complete.')
+    MolDyn.sim.set_up_simulation(argon)
+    print('Relaxation complete.\n')
 
     if False:
         plot_lj()
 
 
 def run_md_simulation():
+    print("Running MD simulation.")
     MolDyn.sim.run()
 
 
@@ -107,12 +101,12 @@ def main():
 
 def intro():
     print(
-        """
-        MD SIM\n
-        by: L. Welzel, C. Slaughter
-        for Comp. Phys. - LU
-        """
-    )
+        "================================\n\n"
+        "         MD SIM\n"
+        "  by: L. Welzel, C. Slaughter\n"
+        "     for Comp. Phys. - LU\n\n"
+        "================================\n"
+        )
 
 
 def plot_lj():

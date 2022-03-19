@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 from constants_class import Constants
 # from scipy.spatial.distance import cdist, euclidean  # slow af
-from sys import version_info
+from sys import version_info, stdout
 from tqdm import tqdm
 from pathlib import Path
 from time import perf_counter
@@ -50,7 +50,8 @@ class MolDyn(object):
         self.max_real_time = max_real_time
         self.time_total = time_total
         self.init_density = density
-        self.box_length = (self.n_particles/self.init_density)**(1/3)
+        # TODO: remove mass scaling factor when passing normalized positions
+        self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
 
         # SAVE PARAMETERS
         self.file_location = Path(file_location) / (name + ".h5")
@@ -187,15 +188,14 @@ class MolDyn(object):
 
         # rescale the problem until relaxed
         rescale = np.inf
-        threshold = 0.01
-        relaxation_steps = 25
+        threshold = 0.01  # 1% error is acceptable
+        relaxation_steps = 10
         while not np.allclose(rescale, 1., rtol=0., atol=threshold):
             for __ in np.arange(relaxation_steps):
                 self.tick()
 
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
-            print(f"\t\tRelaxation run lambda: {rescale}")
 
         ### save simulation metadata to h5 file
         meta_dict = {"n_particles": self.n_particles,
@@ -305,14 +305,16 @@ class MolDyn(object):
         # shape     = (max_steps,   n_particles,    n_dim)
         # chunks    = (n_steps,     n_particles,    n_dim)
         # save particle positions
-        
-
+        print("Saving simulation progress (particles)")
         for i, particle in enumerate(tqdm(self.instances,
-                                          desc="\tSaving simulation progress (particles)",
                                           leave=False)):
             self.file[self.__h5_data_name__][-self.n_steps:, i] = particle.pos.reshape((self.n_steps, self.n_dim))
 
+        stdout.write("\033[F")
+        stdout.flush()
+
         # save statistical properties
+        print("Saving simulation progress (statistics)")
         for i, stat in enumerate(tqdm([self.time_steps,
                                        self.scale_velocity,
                                        self.temperature,
@@ -321,10 +323,12 @@ class MolDyn(object):
                                        self.pressure,
                                        self.density,
                                        self.surface_tension],
-                                      desc="\tSaving simulation progress (statistics)",
                                       leave=False)):
             self.file[self.__h5_stat_data_names__[i]][-self.n_steps:] = stat
             n = i
+
+        stdout.write("\033[F")
+        stdout.flush()
 
         if self.sim_running:
             self.file[self.__h5_data_name__].resize((self.file[self.__h5_data_name__].shape[0] + self.n_steps), axis=0)
@@ -377,8 +381,8 @@ class MolDyn(object):
         self.av_particle_sigma = np.mean([particle.sigma for particle in self.instances])
         self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
         # bk = Constants.bk
-        # box length is defined as normalized above (init)
-        # self.box_length *= 1 / self.av_particle_sigma
+        # TODO: remove when passing normalized box length
+        self.box_length *= 1 / self.av_particle_sigma
         
         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
@@ -415,12 +419,17 @@ class MolDyn(object):
         return
 
     def get_ekin(self):
+        # np.einsum('ij,ij->j',
+        #           particle.vel[self.current_step],
+        #           particle.vel[self.current_step])
         return 0.5 * np.sum([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
                              for particle in self.__instances__])
 
     def rescale_velocity(self):
-        print(self.target_kinetic_energy, self.get_ekin())
-        scale = np.sqrt(self.target_kinetic_energy / self.get_ekin())
+        ekin = self.get_ekin()
+        scale = np.sqrt(self.target_kinetic_energy / ekin)
+
+        print(f"\t Rescaling... \t lambda: {scale:.3e} \t target Ekin: {self.target_kinetic_energy:.3e} \t Ekin: {ekin:.3e}")
         for particle in self.__instances__:
             particle.vel *= scale
             particle.reset_lap()
