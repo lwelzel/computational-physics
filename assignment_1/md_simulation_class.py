@@ -184,18 +184,21 @@ class MolDyn(object):
         self.setup_mic()
         self.normalize_problem()
 
-        print("\tRescaling problem...")
-
         # rescale the problem until relaxed
         rescale = np.inf
         threshold = 0.01  # 1% error is acceptable
         relaxation_steps = 10
+
+        print(f"Rescaling problem...\n"
+              f"\tAcceptable relative error in kinetic energies: {threshold:.2e}")
         while not np.allclose(rescale, 1., rtol=0., atol=threshold):
             for __ in np.arange(relaxation_steps):
                 self.tick()
 
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
+
+        print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
 
         ### save simulation metadata to h5 file
         meta_dict = {"n_particles": self.n_particles,
@@ -222,7 +225,8 @@ class MolDyn(object):
         # each block will be n_steps long so dont set this unreasonably high
         # this should significantly speed up our program
         pbar1 = tqdm(total=100,
-                     desc='Progress')
+                     desc='Progress',
+                     leave=False)
         self.sim_running = True
         while True:
             for __ in np.arange(self.n_steps - 1):
@@ -271,7 +275,7 @@ class MolDyn(object):
                 self.current_step = 0
                 # TODO: set up new iteration using last vales as initial values
 
-        print(f"Done. \t\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
+        print(f"Done.\n\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
 
     def tick(self):
         """
@@ -310,9 +314,6 @@ class MolDyn(object):
                                           leave=False)):
             self.file[self.__h5_data_name__][-self.n_steps:, i] = particle.pos.reshape((self.n_steps, self.n_dim))
 
-        stdout.write("\033[F")
-        stdout.flush()
-
         # save statistical properties
         print("Saving simulation progress (statistics)")
         for i, stat in enumerate(tqdm([self.time_steps,
@@ -326,9 +327,6 @@ class MolDyn(object):
                                       leave=False)):
             self.file[self.__h5_stat_data_names__[i]][-self.n_steps:] = stat
             n = i
-
-        stdout.write("\033[F")
-        stdout.flush()
 
         if self.sim_running:
             self.file[self.__h5_data_name__].resize((self.file[self.__h5_data_name__].shape[0] + self.n_steps), axis=0)
@@ -429,7 +427,7 @@ class MolDyn(object):
         ekin = self.get_ekin()
         scale = np.sqrt(self.target_kinetic_energy / ekin)
 
-        print(f"\t Rescaling... \t lambda: {scale:.3e} \t target Ekin: {self.target_kinetic_energy:.3e} \t Ekin: {ekin:.3e}")
+        print(f"\t\tRescaling:\tlambda: {scale:.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
         for particle in self.__instances__:
             particle.vel *= scale
             particle.reset_lap()
