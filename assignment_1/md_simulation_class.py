@@ -50,9 +50,7 @@ class MolDyn(object):
         self.max_real_time = max_real_time
         self.time_total = time_total
         self.init_density = density
-        self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
-        self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
-        #print(self.box_length)
+        self.box_length = (self.n_particles/self.init_density)**(1/3)
 
         # SAVE PARAMETERS
         self.file_location = Path(file_location) / (name + ".h5")
@@ -185,6 +183,8 @@ class MolDyn(object):
         self.setup_mic()
         self.normalize_problem()
 
+        print("\tRescaling problem...")
+
         # rescale the problem until relaxed
         rescale = np.inf
         threshold = 0.01
@@ -195,8 +195,7 @@ class MolDyn(object):
 
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
-            # print(f"Reset.\n"
-            #       f"\t Error: {rescale}")
+            print(f"\t\tRelaxation run lambda: {rescale}")
 
         ### save simulation metadata to h5 file
         meta_dict = {"n_particles": self.n_particles,
@@ -378,12 +377,8 @@ class MolDyn(object):
         self.av_particle_sigma = np.mean([particle.sigma for particle in self.instances])
         self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
         # bk = Constants.bk
-        self.box_length *= 1 / self.av_particle_sigma
-        
-        #save box length for plotting purposes:
-        f = open('norm_boxlength.txt','w')
-        f.write(str(self.box_length))
-        f.close
+        # box length is defined as normalized above (init)
+        # self.box_length *= 1 / self.av_particle_sigma
         
         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
@@ -420,10 +415,11 @@ class MolDyn(object):
         return
 
     def get_ekin(self):
-        return 0.5 * np.sum([particle.mass * np.linalg.norm(particle.vel[self.current_step])
+        return 0.5 * np.sum([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
                              for particle in self.__instances__])
 
     def rescale_velocity(self):
+        print(self.target_kinetic_energy, self.get_ekin())
         scale = np.sqrt(self.target_kinetic_energy / self.get_ekin())
         for particle in self.__instances__:
             particle.vel *= scale
