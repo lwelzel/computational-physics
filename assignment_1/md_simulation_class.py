@@ -58,6 +58,7 @@ class MolDyn(object):
         self.file_location = self.file_location
         self.file = h5py.File(self.file_location, "w")
         self.__h5_position_name__ = "position"
+        self.__h5_velocity_name__ = "velocity"
         self.file.create_dataset(self.__h5_position_name__,
                                  compression="gzip",
                                  shape=(self.n_steps, self.n_particles, self.n_dim),
@@ -206,7 +207,7 @@ class MolDyn(object):
 
         print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
 
-        ### save simulation metadata to h5 file
+        ### save simulation data to h5 file
         meta_dict = {"n_particles": self.n_particles,
                      "n_dim": self.n_dim,
                      "time_total": self.time_total,
@@ -308,10 +309,11 @@ class MolDyn(object):
         # shape     = (max_steps,   n_particles,    n_dim)
         # chunks    = (n_steps,     n_particles,    n_dim)
         # save particle positions
-        print("Saving simulation progress (particles)")
+        print("/nSaving simulation progress (particles)")
         for i, particle in enumerate(tqdm(self.instances,
                                           leave=False)):
             self.file[self.__h5_position_name__][-self.n_steps:, i] = particle.pos.reshape((self.n_steps, self.n_dim))
+            self.file[self.__h5_velocity_name__][-self.n_steps:, i] = particle.vel.reshape((self.n_steps, self.n_dim))
 
         # prepare potential for virial for pressure
         # multiply by 0.5^2 because we iterate over all pairs (i.e. all pairs get counted twice)
@@ -321,7 +323,7 @@ class MolDyn(object):
         self.pressure = 1 - 1 / (3 * self.n_dim * 1 * self.target_temperature) * self.potential_energy * 0.5 ** 2
 
         # save statistical properties
-        print("Saving simulation progress (statistics)")
+        print("/nSaving simulation progress (statistics)")
         for i, stat in enumerate(tqdm([self.time_steps,
                                        self.scale_velocity,
                                        self.temperature,
@@ -336,6 +338,7 @@ class MolDyn(object):
 
         if self.sim_running:
             self.file[self.__h5_position_name__].resize((self.file[self.__h5_position_name__].shape[0] + self.n_steps), axis=0)
+            self.file[self.__h5_velocity_name__].resize((self.file[self.__h5_velocity_name__].shape[0] + self.n_steps), axis=0)
             for i in np.arange(n):
                 self.file[self.__h5_stat_data_names__[i]].resize(
                     (self.file[self.__h5_stat_data_names__[i]].shape[0] + self.n_steps), axis=0)
