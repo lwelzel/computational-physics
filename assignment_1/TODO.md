@@ -33,6 +33,7 @@
 
 ## To Dos:
 ### ESSENTIAL
+https://en.wikibooks.org/wiki/Molecular_Simulation/Radial_Distribution_Functions
 - [ ] Make requirements.txt file (https://mariashaukat.medium.com/a-guide-to-conda-environments-in-jupyter-pycharm-and-github-5ba3833d859a)
 - [ ] Make environment.yml file
 - [ ]

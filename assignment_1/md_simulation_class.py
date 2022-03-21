@@ -51,7 +51,7 @@ class MolDyn(object):
         self.time_total = time_total
         self.init_density = density
         # TODO: remove mass scaling factor when passing normalized positions
-        self.box_length = (self.n_particles/self.init_density)**(1/3)
+        self.box_length = (self.n_particles/ self.init_density)**(1/3)
 
         # SAVE PARAMETERS
         self.file_location = Path(file_location) / (name + ".h5")
@@ -217,8 +217,26 @@ class MolDyn(object):
             # print(self.__instances__[0].force[self.current_step])
             # print(self.__instances__[np.argmax([np.sum(np.square(particle.force[self.current_step])) for particle in self.__instances__])].force[: self.current_step +2])
 
+
+            positions = np.squeeze(np.array([particle.pos for particle in self.__instances__])[:, :relaxation_steps])
+
+            print(positions.shape)
+
+            import plotly.graph_objects as go
+
+            fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
+                                                   mode='markers') for x, y, z in zip(positions[:, :, 0],
+                                                                                      positions[:, :, 1],
+                                                                                      positions[:, :, 2])])
+            fig.show()
+
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
+
+
+
+            raise BaseException
+
 
         print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
 
@@ -456,8 +474,10 @@ class MolDyn(object):
         #           particle.vel[self.current_step])
         l = np.array([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
                              for particle in self.__instances__])
+        print()
         print(f"\t\t\t\tmean ekin: {np.mean(l):.2e} \t median ekin: {np.median(l):.2e}\n"
               f"\t\t\t\tmin ekin: {np.min(l):.2e} \t max ekin: {np.max(l):.2e}")
+        print()
         return 0.5 * np.sum([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
                              for particle in self.__instances__])
 

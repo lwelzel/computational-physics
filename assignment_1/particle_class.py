@@ -133,21 +133,22 @@ class Particle(object):
         #  If np.ma.array(arr, mask) stores a reference to arr instead of the thing itself that should work
         # TODO: make an interpolant for this function so it does not need to be computed at every step
         # TODO: equal an opposite reaction: compute forces just once
-        print(self.__id__)
-        print(self.force[self.sim.current_step + future_step])
+        # print(self.__id__)
+        # print(self.force[self.sim.current_step + future_step])
         for other in np.ma.array(self.sim.instances, mask=self.mask).compressed():
             force, potential = self.get_force_potential(other, future_step)
             # TODO: half it here because it evaluates it twice for every particle pair
             self.sim.potential_energy[self.sim.current_step + future_step] += potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
-            if np.sum(np.abs(force)) > 50:
-                print(self.__id__, other.__id__)
-                print(force)
-                print(self.dpos[:], "======")
-
-        print(self.force[self.sim.current_step + future_step])
-        print()
-        print()
+        #     if np.sum(np.abs(force)) > 0.:
+        #         print(self.__id__, other.__id__)
+        #         print(f"Force:     {np.sqrt(np.sum(np.square(force))).astype(float):.3e}")
+        #         print(f"Potential: {potential[0]:.3e}")
+        #         print(f"Distance:  {np.sqrt(np.sum(np.square(self.dpos))).astype(float):.3e}")
+        #
+        # # print(self.force[self.sim.current_step + future_step])
+        # print()
+        # print()
 
     def get_force_potential(self, other, future_step=0):
         dist, vector = self.get_distance_absoluteA1(other, future_step)
@@ -155,12 +156,12 @@ class Particle(object):
 
     def force_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
+        return 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def potential_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return - 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
+        return 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def propagate_explicit_euler(self):
         """"
@@ -268,7 +269,7 @@ class Particle(object):
         self.acc[1:] = zeros
 
     def reset_scaling_lap(self):
-        self.pos[0] = self.initial_pos
+        self.pos[0] = self.pos[self.sim.current_step, :]  # self.initial_pos
         self.vel[0] = self.vel[self.sim.current_step, :]
 
         zeros = np.zeros_like(self.pos)

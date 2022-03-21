@@ -5,7 +5,7 @@ from argon_class import Argon
 
 
 def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
-                      time_total=5.e-12, initial_timestep=1e-16,
+                      time_total=5.e-13, initial_timestep=1.5e-16,
                       max_steps=1e6, max_real_time=3 * 60,
                       temperature=0.5, density=1.2):
     # TODO: mass might be array
@@ -20,16 +20,11 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
            max_steps=max_steps, max_real_time=max_real_time,
            temperature=temperature, density=density,
            file_location=Path(""),
-           name="MD_simulation")  # box_length=box_length,
-
+           name="MD_simulation")
     # general
     shape = (n_particles, n_dim, 1)
 
     n_sets = int(np.round((n_particles / 4) ** (1 / 3)))
-
-    start_pos, step = np.linspace(-MolDyn.sim.box_length / 2, MolDyn.sim.box_length / 2, n_sets, endpoint=False, retstep=True)
-    start_pos = start_pos + step / 2  # shifts off box edge
-
 
     initial_particle_position = np.zeros(shape=shape)
     initial_particle_velocity = rng.normal(0., 1., size=shape)
@@ -42,23 +37,20 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
         [[1.], [1.], [0.]]
     ])
 
-    fcc_grid_x, fcc_grid_y, fcc_grid_y = np.meshgrid(*np.tile(start_pos, (n_dim, 1)))
-
-    print(fcc_grid.shape)
-    import plotly.graph_objects as go
-    fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
-                                       mode='markers')])
-    fig.show()
+    start_pos, step = np.linspace(-MolDyn.sim.box_length / 2, MolDyn.sim.box_length / 2, n_sets, endpoint=False,
+                                  retstep=True)
+    start_pos = start_pos + step / 4  # shifts off box edge
+    # half of the fraction of the total box length established a few lines above
 
     idx_count = 0
     for idxx, first_x in enumerate(start_pos):
         for idxy, first_y in enumerate(start_pos):
             for idxz, first_z in enumerate(start_pos):
-                set_positions = np.zeros(shape=(4, n_dim, 1))
-                set_positions[0] = np.array([first_x, first_y, first_z]).reshape(3, 1)
-                set_positions[1] = np.array([first_x, first_y + pos_change, first_z + pos_change]).reshape(3, 1)
-                set_positions[2] = np.array([first_x + pos_change, first_y + pos_change, first_z]).reshape(3, 1)
-                set_positions[3] = np.array([first_x + pos_change, first_y, first_z + pos_change]).reshape(3, 1)
+                set_positions = np.tile(np.array([[[first_x], [first_y], [first_z]]]),
+                                        (len(fcc_unit), 1, 1))
+
+                set_positions += fcc_unit * step / 2
+
                 curr_idx = 4 * (idx_count)
                 end_idx = curr_idx + 4
                 initial_particle_position[curr_idx:end_idx, :, :] = set_positions
@@ -93,9 +85,6 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
 
     MolDyn.sim.set_up_simulation(argon)
     print('Relaxation complete.\n')
-
-    if False:
-        plot_lj()
 
 
 def run_md_simulation():
@@ -136,16 +125,19 @@ def plot_lj():
                                   figsize=(6, 12))
     x_min = 0.8
     x = np.linspace(x_min, 3, 500)
-    ax.plot(x, Argon.potential_lennard_jones(MolDyn.sim.instances[0], x),
-            color="k")
+    sigma_r_ratio = 1. / x
+    ax.plot(x, 4 * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6)),
+             color="k")
+
 
     # AXIS TICK LABELS
     ax.set_ylim(-2, 2)
     ax.set_xlim(x_min, None)
     ax.set_ylabel(r'$\Phi ~ (E_{LJ}/\epsilon)$ [-]')
 
-    ax1.plot(x, Argon.force_lennard_jones(MolDyn.sim.instances[0], x),
-             color="k")
+    ax1.plot(x, 24.0 * np.power(sigma_r_ratio, 2) \
+            * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6)),
+            color="k")
 
     # AXIS TICK LABELS
     ax1.set_ylim(-2, 2)
@@ -173,13 +165,10 @@ def plot_lj():
 def show_3d_init_pos(initial_positions):
     import plotly.graph_objects as go
 
-    initial_positions = np.squeeze(initial_positions)
-    x, y, z = initial_positions[:, 0], initial_positions[:, 1], initial_positions[:, 2]
-
-    print(x.shape, y.shape, z.shape)
-
     fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
-                                       mode='markers')])
+                                       mode='markers') for x, y, z in zip(initial_positions[:, 0],
+                                                                          initial_positions[:, 1],
+                                                                          initial_positions[:, 2])])
     fig.show()
 
 
