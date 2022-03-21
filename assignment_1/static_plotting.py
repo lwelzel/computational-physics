@@ -74,7 +74,7 @@ def read_h5_data(loc, ):
     return header, pos, vel, pressure
 
 
-def plotly_3d_static(pos, header):
+def plotly_3d_static(pos, vel, header):
     length = header["box_length"]
     half_len = length / 2
 
@@ -104,11 +104,16 @@ def plotly_3d_static(pos, header):
     for idx in range(pos.shape[0]):
         df = pd.DataFrame(pos[idx])
         df.columns = ['x', 'y', 'z']
-        curr_atom = go.Scatter3d(x=df['x'], y=df['y'], z=df['z'], mode='markers',
-                                 marker=dict(size=size, line=dict(width=0)))
+        vdf=pd.DataFrame(vel[idx])
+        df['velocity'] = np.sqrt(vdf[0]**2+vdf[1]**2+vdf[2]**2)
+        
+        curr_atom=go.Scatter3d(x=df['x'], y=df['y'], z=df['z'], mode='markers', marker=dict(size=size, color = df['velocity'], cmin=np.min(df['velocity']), cmax=np.max(df['velocity']), colorscale='Viridis', line=dict(width=0)), hoverinfo='name')
         fig.add_trace(curr_atom)
-
-    fig.update_layout(showlegend=False)
+        
+    colorbar_trace = go.Scatter3d(x=[None], y=[None], z=[None], mode='markers', marker=dict(colorscale='Viridis', cmin=np.min(df['velocity']), cmax=np.max(df['velocity']), colorbar=dict(thickness=20, title = 'Speed'),), hoverinfo='none')
+    fig.add_trace(colorbar_trace)
+    
+    fig.update_layout(showlegend=False) 
     fig.show()
 
     return
@@ -228,7 +233,7 @@ def main():
     header, pos, vel, pressure = read_h5_data(Path("MD_simulation.h5"))
     print(header)
     # mpl_strict_2d_static(pos, header)
-    plotly_3d_static(pos, header)
+    plotly_3d_static(pos, vel, header)
 
 
 if __name__ == "__main__":
