@@ -73,6 +73,10 @@ class Particle(object):
         self.force = np.zeros(shape=shape)
 
         # initial values
+        self.initial_pos = initial_pos
+        self.initial_vel = initial_vel
+        self.initial_acc = initial_acc
+
         self.pos[0] = initial_pos
         self.vel[0] = initial_vel
         self.acc[0] = initial_acc
@@ -129,13 +133,22 @@ class Particle(object):
         #  If np.ma.array(arr, mask) stores a reference to arr instead of the thing itself that should work
         # TODO: make an interpolant for this function so it does not need to be computed at every step
         # TODO: equal an opposite reaction: compute forces just once
+        # print(self.__id__)
+        # print(self.force[self.sim.current_step + future_step])
         for other in np.ma.array(self.sim.instances, mask=self.mask).compressed():
             force, potential = self.get_force_potential(other, future_step)
-            # no idea why 0.5, maybe because of two particles?
-            # Does not matter since we are only interested in the relative quantities at the moment
             # TODO: half it here because it evaluates it twice for every particle pair
             self.sim.potential_energy[self.sim.current_step + future_step] += potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
+        #     if np.sum(np.abs(force)) > 0.:
+        #         print(self.__id__, other.__id__)
+        #         print(f"Force:     {np.sqrt(np.sum(np.square(force))).astype(float):.3e}")
+        #         print(f"Potential: {potential[0]:.3e}")
+        #         print(f"Distance:  {np.sqrt(np.sum(np.square(self.dpos))).astype(float):.3e}")
+        #
+        # # print(self.force[self.sim.current_step + future_step])
+        # print()
+        # print()
 
     def get_force_potential(self, other, future_step=0):
         dist, vector = self.get_distance_absoluteA1(other, future_step)
@@ -143,12 +156,12 @@ class Particle(object):
 
     def force_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
+        return 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def potential_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return - 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
+        return 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def propagate_explicit_euler(self):
         """"
@@ -207,9 +220,12 @@ class Particle(object):
                        + self.vel[self.sim.current_step] * self.sim.current_timestep \
                        + self.force[self.sim.current_step] * np.square(self.sim.current_timestep) \
                        / (2 * self.__class__.mass)
+
         self.wrap_d_vector()
         self.pos[self.sim.current_step + 1] = self.dpos
+
         self.set_resulting_force(future_step=1)
+
         self.vel[self.sim.current_step + 1] = self.vel[self.sim.current_step] \
                                               + self.sim.current_timestep / (2 * self.__class__.mass) \
                                               * (self.force[self.sim.current_step]
@@ -227,28 +243,46 @@ class Particle(object):
         # TODO: make this a class method which then iterates over all particles of a species
         # iterate over particles and normalize values
         # TODO: remove when passing normalized box length/ positions
-        self.pos *= 1 / self.__class__.sigma
-        # TODO: implement equipartition, the normalization is wrong here!
-        self.vel *= 1 / np.sqrt(self.__class__.internal_energy /
-                                (self.__class__.particle_mass))
+        # self.pos *= 1 / self.__class__.sigma
+
+        # self.vel *= 1 / np.sqrt(self.__class__.internal_energy /
+        #                         (self.__class__.particle_mass))
         self.acc *= 1 / self.__class__.sigma * \
                     1 / (self.__class__.internal_energy /
                          (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
 
         self.force *= self.__class__.sigma / self.__class__.internal_energy
 
-        self.set_resulting_force()
+        # self.set_resulting_force()
+
 
     def reset_lap(self):
         self.pos[0] = self.pos[self.sim.current_step]
         self.vel[0] = self.vel[self.sim.current_step]
         self.force[0] = self.force[self.sim.current_step]
+        self.acc[0] = self.acc[self.sim.current_step]
+
+        zeros = np.zeros_like(self.pos[1:])
+        self.pos[1:] = zeros
+        self.vel[1:] = zeros
+        self.force[1:] = zeros
+        self.acc[1:] = zeros
+
+    def reset_scaling_lap(self):
+        self.pos[0] = self.pos[self.sim.current_step, :]  # self.initial_pos
+        self.vel[0] = self.vel[self.sim.current_step, :]
+
+        zeros = np.zeros_like(self.pos)
+        self.pos[1:] = zeros[1:]
+        self.vel[1:] = zeros[1:]
+        self.force = zeros
+        self.acc = zeros
 
     @classmethod
     def normalize_class(cls):
-        cls.mass = 1
-        cls.internal_energy = 1
-        cls.sigma = 1
+        cls.mass = 1.
+        cls.internal_energy = 1.
+        cls.sigma = 1.
 
     @property
     def position(self):

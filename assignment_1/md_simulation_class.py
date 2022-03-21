@@ -51,7 +51,7 @@ class MolDyn(object):
         self.time_total = time_total
         self.init_density = density
         # TODO: remove mass scaling factor when passing normalized positions
-        self.box_length = ((self.n_particles*6.6e-26)/self.init_density)**(1/3)
+        self.box_length = (self.n_particles/ self.init_density)**(1/3)
 
         # SAVE PARAMETERS
         self.file_location = Path(file_location) / (name + ".h5")
@@ -190,20 +190,54 @@ class MolDyn(object):
         # TODO: check if needed and stable
         self.setup_mic()
         self.normalize_problem()
+        print('Normalization complete.')
+
+        print("\n\n\n\n\n\n")
 
         # rescale the problem until relaxed
         rescale = np.inf
         threshold = 0.01  # 1% error is acceptable
-        relaxation_steps = 10
+        relaxation_steps = 50
+
+        print(self.n_particles)
+        print(self.current_timestep)
 
         print(f"Rescaling problem...\n"
               f"\tAcceptable relative error in kinetic energies: {threshold:.2e}")
         while not np.allclose(rescale, 1., rtol=0., atol=threshold):
             for __ in np.arange(relaxation_steps):
+                # ekin = self.get_ekin()
+                # scale = np.sqrt(self.target_kinetic_energy / ekin)
+                # print(f"\t\t\t {scale:.3e}")
                 self.tick()
+                # ekin = self.get_ekin()
+                # scale = np.sqrt(self.target_kinetic_energy / ekin)
+                # print(f"\t\t\t {scale:.3e}")
+                # print()
+            # print(f"{np.mean([np.sum(np.square(particle.force[self.current_step])) for particle in self.__instances__]):.3e}")
+            # print(self.__instances__[0].force[self.current_step])
+            # print(self.__instances__[np.argmax([np.sum(np.square(particle.force[self.current_step])) for particle in self.__instances__])].force[: self.current_step +2])
+
+
+            positions = np.squeeze(np.array([particle.pos for particle in self.__instances__])[:, :relaxation_steps])
+
+            print(positions.shape)
+
+            import plotly.graph_objects as go
+
+            fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
+                                                   mode='markers') for x, y, z in zip(positions[:, :, 0],
+                                                                                      positions[:, :, 1],
+                                                                                      positions[:, :, 2])])
+            fig.show()
 
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
+
+
+
+            raise BaseException
+
 
         print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
 
@@ -387,13 +421,20 @@ class MolDyn(object):
         self.av_particle_mass = np.mean([particle.particle_mass for particle in self.instances])
         self.av_particle_sigma = np.mean([particle.sigma for particle in self.instances])
         self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
+
+        print(f"{self.av_particle_mass = }")
+        print(f"{self.av_particle_sigma = }")
+        print(f"{self.av_particle_epsilon = }")
+
         # bk = Constants.bk
         # TODO: remove when passing normalized box length
-        self.box_length *= 1 / self.av_particle_sigma
+        print(f"{self.box_length = }")
+        # self.box_length *= 1 / self.av_particle_sigma
         
         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
 
+        print(f"{self.current_timestep = }")
         self.time_total *= np.sqrt(self.av_particle_epsilon /
                                    (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))
 
@@ -406,18 +447,23 @@ class MolDyn(object):
 
         # iterate over particles and normalize values
         # for type (what a shitty name) in species:
-        for particle in self.instances:
-            particle.normalize_particle()
 
         for spec in self.__species__:
             spec.normalize_class()
 
+
+        for particle in self.instances:
+            particle.normalize_particle()
+
+
+
         # TODO: this should be in a class method, like this redundant class
         for species in self.__species__:
-            species.mass = 1
-            species.sigma = 1
-            species.internal_energy = 1
-            species.bk = 1
+            species.mass = 1.
+            species.sigma = 1.
+            species.internal_energy = 1.
+            species.bk = 1.
+
         self.setup_mic()
 
     def track_properties(self):
@@ -429,6 +475,12 @@ class MolDyn(object):
         # np.einsum('ij,ij->j',
         #           particle.vel[self.current_step],
         #           particle.vel[self.current_step])
+        l = np.array([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
+                             for particle in self.__instances__])
+        print()
+        print(f"\t\t\t\tmean ekin: {np.mean(l):.2e} \t median ekin: {np.median(l):.2e}\n"
+              f"\t\t\t\tmin ekin: {np.min(l):.2e} \t max ekin: {np.max(l):.2e}")
+        print()
         return 0.5 * np.sum([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
                              for particle in self.__instances__])
 
@@ -439,6 +491,6 @@ class MolDyn(object):
         print(f"\t\tRescaling:\tlambda: {scale:.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
         for particle in self.__instances__:
             particle.vel *= scale
-            particle.reset_lap()
+            particle.reset_scaling_lap()
         return scale
 

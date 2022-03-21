@@ -1,4 +1,44 @@
-# To Dos:
+# Overview
+
+# Read Me:
+
+## Use:
+### Preparation
+1. Set up environment using requirements.txt and environment.yml files
+2. Verify that the correct modules and dependencies are installed
+3. Verify the correct environment setup (python version, hardware and OS compatibility)
+4. Activate the environment
+### Running the Simulation
+1. Navigate to ----
+2. Select or input the correct run parameters
+3. Run ---- in the console
+   1. This may take a while
+   2. Progress should be shown
+   3. The program will save progress intermediately
+   4. get a coffee
+4. Once done the console will show a run summary
+### Analyzing the Simulation Result
+1. Verify that the data has been saved properly
+2. Run desired plotting functions
+3. Look at the plots
+   1. Cool plots right?
+
+---
+---
+
+## Authors & Copyleft
+
+
+
+
+## To Dos:
+### ESSENTIAL
+https://en.wikibooks.org/wiki/Molecular_Simulation/Radial_Distribution_Functions
+- [ ] Make requirements.txt file (https://mariashaukat.medium.com/a-guide-to-conda-environments-in-jupyter-pycharm-and-github-5ba3833d859a)
+- [ ] Make environment.yml file
+- [ ]
+- [ ]
+- [ ]
 
 ### Simulation backend:
 - [ ] Implement equipartition, the normalization is (partially) wrong (v, acc, force?)
