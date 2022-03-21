@@ -309,7 +309,7 @@ class MolDyn(object):
         # shape     = (max_steps,   n_particles,    n_dim)
         # chunks    = (n_steps,     n_particles,    n_dim)
         # save particle positions
-        print("/nSaving simulation progress (particles)")
+        print("Saving simulation progress (particles)")
         for i, particle in enumerate(tqdm(self.instances,
                                           leave=False)):
             self.file[self.__h5_position_name__][-self.n_steps:, i] = particle.pos.reshape((self.n_steps, self.n_dim))
@@ -323,7 +323,7 @@ class MolDyn(object):
         self.pressure = 1 - 1 / (3 * self.n_dim * 1 * self.target_temperature) * self.potential_energy * 0.5 ** 2
 
         # save statistical properties
-        print("/nSaving simulation progress (statistics)")
+        print("Saving simulation progress (statistics)")
         for i, stat in enumerate(tqdm([self.time_steps,
                                        self.scale_velocity,
                                        self.temperature,
