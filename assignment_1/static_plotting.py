@@ -6,6 +6,11 @@ from matplotlib import cm
 import matplotlib.pyplot as plt
 from pathlib import Path
 import pandas as pd
+from itertools import combinations
+from static_utils import SimBox
+import pathos.multiprocessing as mp
+from astropy.stats import histogram
+from astropy.visualization import hist
 
 
 def read_npy_data(loc, ):
@@ -131,7 +136,7 @@ def mpl_strict_2d_static(pos, header):
     fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols,
                              constrained_layout=True, subplot_kw={'aspect': 1},
                              # sharex=True, sharey=True,
-                             figsize=(7, 7))
+                             figsize=(12, 12))
     # structure  is (particles, steps, n_dims, 1)
 
     if pos.shape[2] == 3:
@@ -216,11 +221,52 @@ def mpl_strict_2d_static(pos, header):
     return
 
 
-def mpl_plot_pair_corr(sim):
+def mpl_plot_pair_corr(header, pos):
+    box_length = header["box_length"]
+    n_dim = header["n_dim"]
+    n_particles = header["n_particles"]
+    volume = box_length ** n_dim
+    box = SimBox(box_length, n_dim)
+    # (particles, steps, n_dims)
+    pos = np.squeeze(pos[:, -1: :])
+    # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
+    comb_idx = np.transpose(np.triu_indices(len(pos), 1))
+    pos_pairs = pos[comb_idx]
+    pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
+
+    n_cores = int(mp.cpu_count() * 0.8)
+    pool = mp.Pool(n_cores)
+    dist = pool.map(box.get_distance_absoluteA1, pos_pairs)
+    pool.close()
+    pool.join()
+    dist = np.array(dist)
+
+    hist, bin_edges = histogram(dist, bins=100)
+
+    hist = 2 * volume / (n_particles * (n_particles-1)) \
+           * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
+           * hist
+
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(7, 5))
+
+    # solid expected positions:
+    for i in np.arange(25):
+        ax.axvline(np.sqrt(i), alpha=0.5, c="gray", linewidth=0.75)
+
+    ax.bar(bin_edges[:-1], hist)
+    ax.set_xlabel(r'$r / \sigma$')
+    ax.set_ylabel(r'$g(r)$')
+    ax.set_title(f'Radial Distribution Function')
+    plt.show()
     return
 
 
 def mpl_plot_pressure(sim):
+    return
+
+def mpl_plot_energy(sim):
     return
 
 
@@ -228,8 +274,8 @@ def main():
     header, pos, vel, pressure = read_h5_data(Path("MD_simulation.h5"))
     print(header)
     # mpl_strict_2d_static(pos, header)
-    plotly_3d_static(pos, header)
-
+    # plotly_3d_static(pos, header)
+    mpl_plot_pair_corr(header, pos)
 
 if __name__ == "__main__":
     main()

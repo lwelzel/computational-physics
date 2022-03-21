@@ -4,8 +4,8 @@ from md_simulation_class import MolDyn
 from argon_class import Argon
 
 
-def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
-                      time_total=5.e-11, initial_timestep=1e-14,
+def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
+                      time_total=5.e-12, initial_timestep=1e-16,
                       max_steps=1e6, max_real_time=3 * 60,
                       temperature=0.5, density=1.2):
     # TODO: mass might be array
@@ -27,16 +27,28 @@ def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
 
     n_sets = int(np.round((n_particles / 4) ** (1 / 3)))
 
-    start_pos = np.linspace(-MolDyn.sim.box_length / 2, MolDyn.sim.box_length / 2, n_sets + 1)
-    start_pos = start_pos[:-1]
-    start_pos = start_pos + (MolDyn.sim.box_length / 20)  # shifts off box edge
-    pos_change = MolDyn.sim.box_length / 2 / (n_sets)
-    # half of the fraction of the total box length established a few lines above
+    start_pos, step = np.linspace(-MolDyn.sim.box_length / 2, MolDyn.sim.box_length / 2, n_sets, endpoint=False, retstep=True)
+    start_pos = start_pos + step / 2  # shifts off box edge
 
 
     initial_particle_position = np.zeros(shape=shape)
-    initial_particle_velocity = rng.normal(0, 1, size=shape)
+    initial_particle_velocity = rng.normal(0., 1., size=shape)
     initial_particle_acc = np.zeros(shape=shape)
+
+    fcc_unit = np.array([
+        [[0.], [0.], [0.]],
+        [[0.], [1.], [1.]],
+        [[1.], [0.], [1.]],
+        [[1.], [1.], [0.]]
+    ])
+
+    fcc_grid_x, fcc_grid_y, fcc_grid_y = np.meshgrid(*np.tile(start_pos, (n_dim, 1)))
+
+    print(fcc_grid.shape)
+    import plotly.graph_objects as go
+    fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
+                                       mode='markers')])
+    fig.show()
 
     idx_count = 0
     for idxx, first_x in enumerate(start_pos):
@@ -52,6 +64,8 @@ def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
                 initial_particle_position[curr_idx:end_idx, :, :] = set_positions
 
                 idx_count += 1
+
+    show_3d_init_pos(initial_positions=initial_particle_position)
 
     #     #Old Particle Position Setup
     #     # setup rng
@@ -155,6 +169,18 @@ def plot_lj():
         fontsize=11)
     fig.suptitle(f'LJ-Potential & Force', fontsize=20, weight="bold")
     plt.show()
+
+def show_3d_init_pos(initial_positions):
+    import plotly.graph_objects as go
+
+    initial_positions = np.squeeze(initial_positions)
+    x, y, z = initial_positions[:, 0], initial_positions[:, 1], initial_positions[:, 2]
+
+    print(x.shape, y.shape, z.shape)
+
+    fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
+                                       mode='markers')])
+    fig.show()
 
 
 if __name__ == "__main__":
