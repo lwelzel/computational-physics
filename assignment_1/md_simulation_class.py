@@ -196,8 +196,8 @@ class MolDyn(object):
 
         # rescale the problem until relaxed
         rescale = np.inf
-        threshold = 0.01  # 1% error is acceptable
-        relaxation_steps = 50
+        threshold = 0.01  # 0.1% error is acceptable
+        relaxation_steps = 200
 
         print(self.n_particles)
         print(self.current_timestep)
@@ -206,37 +206,11 @@ class MolDyn(object):
               f"\tAcceptable relative error in kinetic energies: {threshold:.2e}")
         while not np.allclose(rescale, 1., rtol=0., atol=threshold):
             for __ in np.arange(relaxation_steps):
-                # ekin = self.get_ekin()
-                # scale = np.sqrt(self.target_kinetic_energy / ekin)
-                # print(f"\t\t\t {scale:.3e}")
                 self.tick()
-                # ekin = self.get_ekin()
-                # scale = np.sqrt(self.target_kinetic_energy / ekin)
-                # print(f"\t\t\t {scale:.3e}")
-                # print()
-            # print(f"{np.mean([np.sum(np.square(particle.force[self.current_step])) for particle in self.__instances__]):.3e}")
-            # print(self.__instances__[0].force[self.current_step])
-            # print(self.__instances__[np.argmax([np.sum(np.square(particle.force[self.current_step])) for particle in self.__instances__])].force[: self.current_step +2])
-
-
-            # positions = np.squeeze(np.array([particle.pos for particle in self.__instances__])[:, :relaxation_steps])
-            #
-            # print(positions.shape)
-            #
-            # import plotly.graph_objects as go
-            #
-            # fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
-            #                                        mode='markers') for x, y, z in zip(positions[:, :, 0],
-            #                                                                           positions[:, :, 1],
-            #                                                                           positions[:, :, 2])])
-            # fig.show()
 
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
 
-
-
-            # raise BaseException
 
 
         print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
@@ -246,7 +220,8 @@ class MolDyn(object):
                      "n_dim": self.n_dim,
                      "time_total": self.time_total,
                      "box_length": self.box_length,
-                     "timestep": self.current_timestep
+                     "timestep": self.current_timestep,
+                     "target_kinetic_energy": self.target_kinetic_energy
                      }
 
         # Store metadata in hdf5 file
@@ -330,7 +305,7 @@ class MolDyn(object):
             particle.propagate_vel()
 
         # UPDATE STATISTICAL PROPERTIES
-        # self.temperature[self.current_step + 1] = self.get_temperature()
+        self.kinetic_energy[self.current_step] = self.get_ekin()
 
         self.time += self.current_timestep
         self.current_step += 1
@@ -480,14 +455,27 @@ class MolDyn(object):
         #           particle.vel[self.current_step])
         l = np.array([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
                              for particle in self.__instances__])
-        print()
-        print(f"\t\t\t\tmean ekin: {np.mean(l):.2e} \t median ekin: {np.median(l):.2e}\n"
-              f"\t\t\t\tmin ekin: {np.min(l):.2e} \t max ekin: {np.max(l):.2e}")
-        print()
+        # print()
+        # print(f"\t\t\t\tmean ekin: {np.mean(l):.2e} \t median ekin: {np.median(l):.2e}\n"
+        #       f"\t\t\t\tmin ekin: {np.min(l):.2e} \t max ekin: {np.max(l):.2e}")
+        # print()
         return 0.5 * np.sum([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
                              for particle in self.__instances__])
 
     def rescale_velocity(self):
+
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(nrows=1, ncols=1,
+                               constrained_layout=True,
+                               figsize=(7, 5))
+
+        ax.plot(self.kinetic_energy[:self.current_step], c="black")
+        ax.axhline(self.target_kinetic_energy, ls="dashed", c="gray")
+        ax.set_xlabel(r'$step$ [-]')
+        ax.set_ylabel(r'$E_{kin}$ [-]')
+        ax.set_title(f'Kinetic Energy')
+        plt.show()
+
         ekin = self.get_ekin()
         scale = np.sqrt(self.target_kinetic_energy / ekin)
 

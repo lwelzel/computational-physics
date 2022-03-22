@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 from itertools import combinations
 from static_utils import SimBox
-# import pathos.multiprocessing as mp
+import pathos.multiprocessing as mp
 from astropy.stats import histogram
 from astropy.visualization import hist
 
@@ -71,12 +71,14 @@ def read_h5_data(loc, ):
         pos = np.array(file["position"])
         vel = np.array(file["velocity"])
         pressure = np.array(file["pressure"])
+        potential_energy = np.array(file["potential_energy"])
+        kinetic_energy = np.array(file["kinetic_energy"])
         header = dict(file.attrs)
 
     pos = np.swapaxes(pos, 0, 1)
     vel = np.swapaxes(vel, 0, 1)
 
-    return header, pos, vel, pressure
+    return header, pos, vel, pressure, potential_energy, kinetic_energy
 
 
 def plotly_3d_static(pos, vel, header):
@@ -246,7 +248,9 @@ def mpl_plot_pair_corr(header, pos):
     pool.join()
     dist = np.array(dist)
 
-    hist, bin_edges = histogram(dist, bins=100)
+    bins = np.arange(0.5, header["box_length"], 0.01)
+
+    hist, bin_edges = histogram(dist, bins=bins)
 
     hist = 2 * volume / (n_particles * (n_particles-1)) \
            * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
@@ -271,15 +275,27 @@ def mpl_plot_pair_corr(header, pos):
 def mpl_plot_pressure(sim):
     return
 
-def mpl_plot_energy(sim):
+def mpl_plot_energy(header, kinetic_energy):
+
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(7, 5))
+
+    ax.plot(kinetic_energy[:-2], c="black")
+    ax.axhline(header["target_kinetic_energy"])
+    ax.set_xlabel(r'$step$ [-]')
+    ax.set_ylabel(r'$E_{kin}$ [-]')
+    ax.set_title(f'Kinetic Energy')
+    plt.show()
+
     return
 
 
 def main():
-    header, pos, vel, pressure = read_h5_data(Path("MD_simulation.h5"))
-    print(header)
-    # mpl_strict_2d_static(pos, header)
+    header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(Path("MD_simulation.h5"))
     plotly_3d_static(pos, vel, header)
+    # mpl_plot_pair_corr(header, pos)
+    # mpl_plot_energy(header, kinetic_energy)
 
 if __name__ == "__main__":
     main()

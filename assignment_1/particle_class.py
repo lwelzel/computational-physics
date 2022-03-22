@@ -142,7 +142,7 @@ class Particle(object):
         for other in np.ma.array(self.sim.instances, mask=self.mask).compressed():
             force, potential = self.get_force_potential(other, future_step)
             # TODO: half it here because it evaluates it twice for every particle pair
-            self.sim.potential_energy[self.sim.current_step + future_step] += potential
+            self.sim.potential_energy[self.sim.current_step + future_step] += 0.5 ** 2 * potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
             # if self.__id__ == 8: # np.sum(np.abs(force)) > 1000.:
             #     print(self.__id__, other.__id__)
@@ -246,8 +246,8 @@ class Particle(object):
         self.acc[1:] = zeros
 
     def reset_scaling_lap(self):
-        self.pos[0] = self.pos[self.sim.current_step, :]  # self.initial_pos
-        self.vel[0] = self.vel[self.sim.current_step, :]
+        self.pos[0] = self.initial_pos  # self.pos[self.sim.current_step, :]  # self.initial_pos
+        self.vel[0] = self.initial_vel  # self.vel[self.sim.current_step, :]
 
         zeros = np.zeros_like(self.pos)
         self.pos[1:] = zeros[1:]
