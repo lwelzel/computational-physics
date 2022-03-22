@@ -163,13 +163,14 @@ class Particle(object):
         return - self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist)
 
     def force_lennard_jones(self, r):
-        sigma_r_ratio = self.__class__.sigma / r
-        return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
-               * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
+        #sigma_r_ratio = self.__class__.sigma / r
+        return -24*(np.power(r,6)-2)/(np.power(r,13))
+        # return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
+#                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def potential_lennard_jones(self, r):
-        sigma_r_ratio = self.__class__.sigma / r
-        return 4 * self.__class__.internal_energy * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
+        #sigma_r_ratio = self.__class__.sigma / r
+        return 4 * (np.power(r, -12) - np.power(r,-6))
 
     def propagate_explicit_euler(self):
         """"
