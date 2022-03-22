@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 from itertools import combinations
 from static_utils import SimBox
-import pathos.multiprocessing as mp
+# import pathos.multiprocessing as mp
 from astropy.stats import histogram
 from astropy.visualization import hist
 
@@ -118,7 +118,7 @@ def plotly_3d_static(pos, vel, header):
     colorbar_trace = go.Scatter3d(x=[None], y=[None], z=[None], mode='markers', marker=dict(colorscale='Viridis', cmin=np.min(df['velocity']), cmax=np.max(df['velocity']), colorbar=dict(thickness=20, title = 'Speed'),), hoverinfo='none')
     fig.add_trace(colorbar_trace)
     
-    fig.update_layout(showlegend=False) 
+    #fig.update_layout(showlegend=False)
     fig.show()
 
     return

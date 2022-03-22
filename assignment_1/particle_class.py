@@ -55,7 +55,8 @@ class Particle(object):
         self.mask = self.sim.occupation - self.__id__ == 0
 
         # INTEGRATOR
-        self.propagate = self.propagate_Verlet
+        self.propagate_pos = self.propagate_Verlet_pos
+        self.propagate_vel = self.propagate_Verlet_vel
 
         # general backend
         shape = (self.sim.n_steps, self.sim.n_dim, 1)
@@ -100,7 +101,10 @@ class Particle(object):
         return f"\nParticle Class __repr__ not implemented.\n"
 
     def wrap_d_vector(self):
-        self.dpos[:] = (self.dpos + self.sim.box2) % self.sim.box - self.sim.box2
+        # self.dpos[:] = (self.dpos + self.sim.box2) % self.sim.box - self.sim.box2
+        self.k[:] = self.dpos[:] \
+                    * self.sim.box2_r  # this casts the result to int, finding in where the closest box is
+        self.dpos[:] = self.dpos[:] - self.k * self.sim.box  # casting back to float must be explicit
 
     def get_distance_vectorA1(self, other, future_step=0):
         """
@@ -140,16 +144,19 @@ class Particle(object):
             # TODO: half it here because it evaluates it twice for every particle pair
             self.sim.potential_energy[self.sim.current_step + future_step] += potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
-            if np.sum(np.abs(force)) > 1000.:
-                print(self.__id__, other.__id__)
-                print(self.mask)
-                print(f"Force:     {np.sqrt(np.sum(np.square(force))).astype(float):.3e}")
-                print(f"Potential: {potential[0]:.3e}")
-                print(f"Distance:  {np.sqrt(np.sum(np.square(self.dpos))).astype(float):.3e}")
-
-        # print(self.force[self.sim.current_step + future_step])
-        print()
-        print()
+            # if self.__id__ == 8: # np.sum(np.abs(force)) > 1000.:
+            #     print(self.__id__, other.__id__)
+            #     print(self.k)
+            #     print(self.dpos)
+            #     print(other.pos[self.sim.current_step + future_step], self.pos[self.sim.current_step + future_step])
+            #     # print(self.sim.box2_r, self.sim.box)
+            #     print(f"Force:     {np.sqrt(np.sum(np.square(force))).astype(float):.3e}")
+            #     print(f"Potential: {potential[0]:.3e}")
+            #     print(f"Distance:  {np.sqrt(np.sum(np.square(self.dpos))).astype(float):.3e}")
+        #
+        # # print(self.force[self.sim.current_step + future_step])
+        # print()
+        # print()
 
     def get_force_potential(self, other, future_step=0):
         dist, vector = self.get_distance_absoluteA1(other, future_step)
@@ -157,7 +164,7 @@ class Particle(object):
 
     def force_lennard_jones(self, r):
         sigma_r_ratio = self.__class__.sigma / r
-        return 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
+        return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def potential_lennard_jones(self, r):
@@ -178,40 +185,7 @@ class Particle(object):
                                               * (self.force[self.sim.current_step])
         return
 
-    def propagate_SABA(self):
-        """
-        Adapted from:
-        H. Rein, D. Tamayo: 'JANUS: A bit-wise reversible integrator for N-body dynamics'. (2017)
-        and
-        H. Rein, D. Tamayo, G. Brown:
-        'High order symplectic integrators for planetary dynamics and their implementation in REBOUND'. (2019)
-        - formally and practically symplectic (integar operations are bijective)
-        - satisfies Liouville’s theorem
-        - exactly time-reversible
-        :return:
-        """
-        pass
-        return
-
-    def propagate_WHCKL(self):
-        """
-        :return:
-        """
-
-        pass
-        return
-
-    def propagate_CC4A(self):
-        """
-        Adapted from:
-        .S. Chin, C. Chen: Forward Symplectic Integrators for Solving Gravitational Few-Body Problems'. (2003)
-        :return:
-        """
-        f, p = None, None
-        vn13 = self.vel[self.sim.current_step] + self.sim.current_timestep / 6 * 1
-        return
-
-    def propagate_Verlet(self):
+    def propagate_Verlet_pos(self):
         """
 
         :return:
@@ -225,6 +199,7 @@ class Particle(object):
         self.wrap_d_vector()
         self.pos[self.sim.current_step + 1] = self.dpos
 
+    def propagate_Verlet_vel(self):
         self.set_resulting_force(future_step=1)
 
         self.vel[self.sim.current_step + 1] = self.vel[self.sim.current_step] \

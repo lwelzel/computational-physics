@@ -197,7 +197,7 @@ class MolDyn(object):
         # rescale the problem until relaxed
         rescale = np.inf
         threshold = 0.01  # 1% error is acceptable
-        relaxation_steps = 10
+        relaxation_steps = 20
 
         print(self.n_particles)
         print(self.current_timestep)
@@ -219,24 +219,24 @@ class MolDyn(object):
             # print(self.__instances__[np.argmax([np.sum(np.square(particle.force[self.current_step])) for particle in self.__instances__])].force[: self.current_step +2])
 
 
-            positions = np.squeeze(np.array([particle.pos for particle in self.__instances__])[:, :relaxation_steps])
-
-            print(positions.shape)
-
-            import plotly.graph_objects as go
-
-            fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
-                                                   mode='markers') for x, y, z in zip(positions[:, :, 0],
-                                                                                      positions[:, :, 1],
-                                                                                      positions[:, :, 2])])
-            fig.show()
+            # positions = np.squeeze(np.array([particle.pos for particle in self.__instances__])[:, :relaxation_steps])
+            #
+            # print(positions.shape)
+            #
+            # import plotly.graph_objects as go
+            #
+            # fig = go.Figure(data=[go.Scatter3d(x=x, y=y, z=z,
+            #                                        mode='markers') for x, y, z in zip(positions[:, :, 0],
+            #                                                                           positions[:, :, 1],
+            #                                                                           positions[:, :, 2])])
+            # fig.show()
 
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
 
 
 
-            raise BaseException
+            # raise BaseException
 
 
         print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
@@ -324,7 +324,10 @@ class MolDyn(object):
         """
         # TODO: should only iterate over n/2 of the particles and set equal but opposite force
         for particle in self.instances:
-            particle.propagate()
+            particle.propagate_pos()
+
+        for particle in self.instances:
+            particle.propagate_vel()
 
         # UPDATE STATISTICAL PROPERTIES
         # self.temperature[self.current_step + 1] = self.get_temperature()
