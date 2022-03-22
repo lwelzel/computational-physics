@@ -11,7 +11,7 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=10000,
     # TODO: mass might be array
     # TODO: setup should accept external initial_pos, vel, acc
 
-    # TODO:
+    # TODO: nothing
 
     # META
     rng = np.random.default_rng()
