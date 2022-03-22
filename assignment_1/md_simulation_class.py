@@ -197,7 +197,7 @@ class MolDyn(object):
         # rescale the problem until relaxed
         rescale = np.inf
         threshold = 0.01  # 1% error is acceptable
-        relaxation_steps = 20
+        relaxation_steps = 50
 
         print(self.n_particles)
         print(self.current_timestep)
@@ -434,12 +434,12 @@ class MolDyn(object):
         print(f"{self.box_length = }")
         # self.box_length *= 1 / self.av_particle_sigma
         
-        self.current_timestep *= np.sqrt(self.av_particle_epsilon /
-                                         (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
+#         self.current_timestep *= np.sqrt(self.av_particle_epsilon /
+#                                          (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
 
         print(f"{self.current_timestep = }")
-        self.time_total *= np.sqrt(self.av_particle_epsilon /
-                                   (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))
+        # self.time_total *= np.sqrt(self.av_particle_epsilon /
+#                                    (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))
 
         self.temperature *= Constants.bk / self.av_particle_epsilon
         self.potential_energy *= 1 / self.av_particle_epsilon
