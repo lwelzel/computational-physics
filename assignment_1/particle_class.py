@@ -140,15 +140,16 @@ class Particle(object):
             # TODO: half it here because it evaluates it twice for every particle pair
             self.sim.potential_energy[self.sim.current_step + future_step] += potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
-        #     if np.sum(np.abs(force)) > 0.:
-        #         print(self.__id__, other.__id__)
-        #         print(f"Force:     {np.sqrt(np.sum(np.square(force))).astype(float):.3e}")
-        #         print(f"Potential: {potential[0]:.3e}")
-        #         print(f"Distance:  {np.sqrt(np.sum(np.square(self.dpos))).astype(float):.3e}")
-        #
-        # # print(self.force[self.sim.current_step + future_step])
-        # print()
-        # print()
+            if np.sum(np.abs(force)) > 1000.:
+                print(self.__id__, other.__id__)
+                print(self.mask)
+                print(f"Force:     {np.sqrt(np.sum(np.square(force))).astype(float):.3e}")
+                print(f"Potential: {potential[0]:.3e}")
+                print(f"Distance:  {np.sqrt(np.sum(np.square(self.dpos))).astype(float):.3e}")
+
+        # print(self.force[self.sim.current_step + future_step])
+        print()
+        print()
 
     def get_force_potential(self, other, future_step=0):
         dist, vector = self.get_distance_absoluteA1(other, future_step)

@@ -197,7 +197,7 @@ class MolDyn(object):
         # rescale the problem until relaxed
         rescale = np.inf
         threshold = 0.01  # 1% error is acceptable
-        relaxation_steps = 50
+        relaxation_steps = 10
 
         print(self.n_particles)
         print(self.current_timestep)

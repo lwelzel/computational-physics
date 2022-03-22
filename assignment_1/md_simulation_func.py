@@ -57,7 +57,7 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
 
                 idx_count += 1
 
-    show_3d_init_pos(initial_positions=initial_particle_position)
+    # show_3d_init_pos(initial_positions=initial_particle_position)
 
     #     #Old Particle Position Setup
     #     # setup rng
