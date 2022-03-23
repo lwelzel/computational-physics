@@ -314,7 +314,7 @@ def plot_lj():
                                   figsize=(6, 12))
     x_min = 0.8
     x = np.linspace(x_min, 3, 500)
-    r = 1. / x
+    r = x # 1. / x
     ax.plot(x, 4 * (np.power(r, -12) - np.power(r,-6)),
              color="k")
 
@@ -328,7 +328,7 @@ def plot_lj():
             color="k")
 
     # AXIS TICK LABELS
-    ax1.set_ylim(-2, 2)
+    ax1.set_ylim(-3, 2)
     ax1.set_xlim(x_min, None)
     ax1.set_xlabel(r'$\frac{R}{\sigma}$ [-]')
     ax1.set_ylabel(r'$\nabla\Phi ~ (F\sigma/\epsilon)$ [-]')
@@ -352,10 +352,15 @@ def plot_lj():
 
 
 def main():
-    header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(Path("MD_simulation.h5"))
-    plotly_3d_static(pos, vel, header)
-    mpl_plot_pair_corr(header, pos)
-    mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+    files = Path(".\simulation_data").rglob("*.h5")
+    files = np.array([path for path in files]).flatten()
+    for file in np.flip(files):
+        print(file)
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+        plotly_3d_static(pos, vel, header)
+        # mpl_plot_pair_corr(header, pos)
+        mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+        break
 
 if __name__ == "__main__":
     main()

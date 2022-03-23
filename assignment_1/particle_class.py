@@ -149,11 +149,11 @@ class Particle(object):
 
     def get_force_potential(self, other, future_step=0):
         dist, vector = self.get_distance_absoluteA1(other, future_step)
-        return - self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist)
+        return self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist)
 
     def force_lennard_jones(self, r):
         #sigma_r_ratio = self.__class__.sigma / r
-        return - 24*(np.power(r,6)-2)/(np.power(r,13))
+        return 24*(np.power(r,6)-2)/(np.power(r,13))
         # return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
 #                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
