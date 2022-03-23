@@ -13,7 +13,6 @@ from scipy.signal import argrelextrema
 import matplotlib.pyplot as plt
 
 # np.can_cast(int, float, casting='safe')
-
 class MolDyn(object):
     """
     CLass for holding simulation objects
@@ -299,7 +298,7 @@ class MolDyn(object):
                 # TODO: set up new iteration using last vales as initial values
 
         print(f"Done.\n\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
-
+    
     def tick(self):
         """
         Moves the simulation forward by one step
@@ -524,7 +523,7 @@ class MolDyn(object):
                 ax.set_title(f'Kinetic Energy')
                 ax.legend()
                 ax.set_yscale("log")
-                plt.show()
+                #plt.show()
             else:
                 ax.plot(self.kinetic_energy[:self.current_step], c="black", alpha=alpha)
                 ax.plot(estimated, c="red", ls="dashed", alpha=alpha)
