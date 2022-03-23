@@ -4,8 +4,8 @@ from md_simulation_class import MolDyn
 from argon_class import Argon
 
 
-def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
-                      time_total=1.e0, initial_timestep=1.e-3,
+def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
+                      time_total=3.e0, initial_timestep=1.e-3,
                       max_steps=1e6, max_real_time=3 * 60,
                       temperature=0.5, density=1.2):
     # TODO: mass might be array

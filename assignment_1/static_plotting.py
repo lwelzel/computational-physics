@@ -281,7 +281,7 @@ def mpl_plot_energy(header, kinetic_energy):
                            constrained_layout=True,
                            figsize=(7, 5))
 
-    ax.plot(kinetic_energy[:-2], c="black")
+    ax.plot(kinetic_energy[np.nonzero(kinetic_energy)], c="black")
     ax.axhline(header["target_kinetic_energy"])
     ax.set_xlabel(r'$step$ [-]')
     ax.set_ylabel(r'$E_{kin}$ [-]')
@@ -294,8 +294,8 @@ def mpl_plot_energy(header, kinetic_energy):
 def main():
     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(Path("MD_simulation.h5"))
     plotly_3d_static(pos, vel, header)
-    # mpl_plot_pair_corr(header, pos)
-    # mpl_plot_energy(header, kinetic_energy)
+    mpl_plot_pair_corr(header, pos)
+    mpl_plot_energy(header, kinetic_energy)
 
 if __name__ == "__main__":
     main()

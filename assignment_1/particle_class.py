@@ -247,7 +247,7 @@ class Particle(object):
 
     def reset_scaling_lap(self):
         self.pos[0] = self.initial_pos  # self.pos[self.sim.current_step, :]  # self.initial_pos
-        self.vel[0] = self.initial_vel  # self.vel[self.sim.current_step, :]
+        self.vel[0] = self.initial_vel  # self.vel[self.sim.current_step, :]  # self.initial_vel
 
         zeros = np.zeros_like(self.pos)
         self.pos[1:] = zeros[1:]
