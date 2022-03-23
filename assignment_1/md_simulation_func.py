@@ -43,6 +43,7 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=1000,
     # half of the fraction of the total box length established a few lines above
 
     idx_count = 0
+    
     for idxx, first_x in enumerate(start_pos):
         for idxy, first_y in enumerate(start_pos):
             for idxz, first_z in enumerate(start_pos):

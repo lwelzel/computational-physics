@@ -275,7 +275,7 @@ def mpl_plot_pair_corr(header, pos):
 def mpl_plot_pressure(sim):
     return
 
-def mpl_plot_energy(header, kinetic_energy):
+def mpl_plot_energy(header, kinetic_energy, potential_energy):
 
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True,
@@ -287,15 +287,28 @@ def mpl_plot_energy(header, kinetic_energy):
     ax.set_ylabel(r'$E_{kin}$ [-]')
     ax.set_title(f'Kinetic Energy')
     plt.show()
-
+    
+    tot_energy = kinetic_energy + potential_energy
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(7, 5))
+    ax.plot(potential_energy[np.nonzero(potential_energy)], label = 'Potential')
+    ax.plot(kinetic_energy[np.nonzero(kinetic_energy)], label = 'Kinetic')
+    ax.plot(tot_energy[np.nonzero(tot_energy)], label = 'Total')
+    ax.set_xlabel(r'$step$ [-]')
+    ax.set_ylabel(r'Energy [-]')
+    ax.set_title(f'Simulation Energy vs Time')
+    ax.legend()
+    plt.show()
+    
     return
 
 
 def main():
     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(Path("MD_simulation.h5"))
-    plotly_3d_static(pos, vel, header)
-    mpl_plot_pair_corr(header, pos)
-    mpl_plot_energy(header, kinetic_energy)
+    #plotly_3d_static(pos, vel, header)
+    #mpl_plot_pair_corr(header, pos)
+    mpl_plot_energy(header, kinetic_energy, potential_energy)
 
 if __name__ == "__main__":
     main()
