@@ -4,10 +4,10 @@ from md_simulation_class import MolDyn
 from argon_class import Argon
 
 
-def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=3000,
-                      time_total=3.e0, initial_timestep=1.e-3,
+def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=1000,
+                      time_total=0.99e0, initial_timestep=2.e-3,
                       max_steps=1e6, max_real_time=3 * 60,
-                      temperature=0.5, density=1.2):
+                      density=1.2, temperature=0.5):
     # TODO: mass might be array
     # TODO: setup should accept external initial_pos, vel, acc
 
@@ -27,8 +27,8 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=3000,
     n_sets = int(np.round((n_particles / 4) ** (1 / 3)))
 
     initial_particle_position = np.zeros(shape=shape)
-    initial_particle_velocity = rng.normal(0., 1., size=shape)
-    initial_particle_acc = np.zeros(shape=shape)
+    # initial_particle_velocity = rng.normal(0., 1., size=shape)
+    # initial_particle_acc = np.zeros(shape=shape)
 
     fcc_unit = np.array([
         [[0.], [0.], [0.]],
@@ -60,28 +60,7 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=3000,
 
     # show_3d_init_pos(initial_positions=initial_particle_position)
 
-    #     #Old Particle Position Setup
-    #     # setup rng
-    #     rng = np.random.default_rng()
-    #     initial_particle_position = rng.uniform(low=-1, high=1, size=shape) * MolDyn.sim.box_length  # random particle positions
-    #     # TODO: np.mgrid is more efficient
-    #     # TODO: implement rough sphere packing for even distribution - eazypeazy NP-hard
-    #     # shitty approach for square/cube numbers of particles below - OF COURSE ONLY WORKS FOR SQUARES
-    #     initial_particle_position, step = np.linspace(-1, 1, int(np.around((n_particles)**(1/n_dim))), endpoint=False, retstep=True)
-    #     initial_particle_position += step/2
-    #
-    #     dim_list=[]
-    #     for dim in range(n_dim):
-    #     	dim_list.append(initial_particle_position)
-    #
-    #
-    #     initial_particle_position = (np.array(np.meshgrid(*dim_list)).T * MolDyn.sim.box_length / 2).reshape(shape)
-    #     initial_particle_position += rng.normal(loc=0, scale=5e-2, size=shape) * MolDyn.sim.box_length / 2
-    #
-    #     initial_particle_velocity = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
-    #     initial_particle_acc = np.zeros(shape=shape)  # rng.uniform(low=-1, high=1, size=(n_particles, n_dim))
-
-    argon = (Argon, n_particles, initial_particle_position, initial_particle_velocity, initial_particle_acc)
+    argon = (Argon, n_particles, initial_particle_position, None, None)
     print('Initialization complete.')
 
     MolDyn.sim.set_up_simulation(argon)
@@ -118,50 +97,7 @@ def intro():
         )
 
 
-def plot_lj():
-    import matplotlib.pyplot as plt
-    fig, (ax, ax1) = plt.subplots(nrows=2, ncols=1,
-                                  constrained_layout=True,
-                                  sharex=True,
-                                  figsize=(6, 12))
-    x_min = 0.8
-    x = np.linspace(x_min, 3, 500)
-    sigma_r_ratio = 1. / x
-    ax.plot(x, 4 * (np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6)),
-             color="k")
 
-
-    # AXIS TICK LABELS
-    ax.set_ylim(-2, 2)
-    ax.set_xlim(x_min, None)
-    ax.set_ylabel(r'$\Phi ~ (E_{LJ}/\epsilon)$ [-]')
-
-    ax1.plot(x, 24.0 * np.power(sigma_r_ratio, 2) \
-            * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6)),
-            color="k")
-
-    # AXIS TICK LABELS
-    ax1.set_ylim(-2, 2)
-    ax1.set_xlim(x_min, None)
-    ax1.set_xlabel(r'$\frac{R}{\sigma}$ [-]')
-    ax1.set_ylabel(r'$\nabla\Phi ~ (F\sigma/\epsilon)$ [-]')
-
-    # GLOBAL
-    ax.axhline(0, ls="dotted", color="gray")
-    ax.axhline(-1, ls="dotted", color="gray")
-    ax.axvline(1, ls="dotted", color="gray")
-    ax1.axhline(0, ls="dotted", color="gray")
-    ax1.axvline(1, ls="dotted", color="gray")
-
-    ax.set_title(
-        r'$by~L. Welzel~and~C. Slaughter$'
-        f'\n\nArgon: LJ-Potential',
-        fontsize=11)
-    ax1.set_title(
-        f'Argon: LJ-Force',
-        fontsize=11)
-    fig.suptitle(f'LJ-Potential & Force', fontsize=20, weight="bold")
-    plt.show()
 
 def show_3d_init_pos(initial_positions):
     import plotly.graph_objects as go

@@ -287,18 +287,17 @@ def mpl_plot_energy(header, kinetic_energy):
     ax.set_ylabel(r'$E_{kin}$ [-]')
     ax.set_title(f'Kinetic Energy')
     plt.show()
-    
     return
 
-def mpl_plot_energy_cons(kinetic_energy, potential_energy):
-    
+def mpl_plot_energy_cons(header, kinetic_energy, potential_energy):
     tot_energy = kinetic_energy[np.nonzero(kinetic_energy)] + potential_energy[np.nonzero(potential_energy)]
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(7, 5))
-    ax.plot(potential_energy[np.nonzero(potential_energy)], label = 'Potential')
-    ax.plot(kinetic_energy[np.nonzero(kinetic_energy)], label = 'Kinetic')
-    ax.plot(tot_energy, label = 'Total')
+    ax.plot(potential_energy[np.nonzero(potential_energy)], label='Potential')
+    ax.plot(kinetic_energy[np.nonzero(kinetic_energy)], label='Kinetic')
+    ax.plot(tot_energy, label='Total')
+    ax.axhline(header["target_kinetic_energy"], label="Target Kinetic", c="gray", ls="dashed")
     ax.set_xlabel(r'$step$ [-]')
     ax.set_ylabel(r'Energy [-]')
     ax.set_title(f'Simulation Energy vs Time')
@@ -307,13 +306,56 @@ def mpl_plot_energy_cons(kinetic_energy, potential_energy):
     
     return
 
+def plot_lj():
+    import matplotlib.pyplot as plt
+    fig, (ax, ax1) = plt.subplots(nrows=2, ncols=1,
+                                  constrained_layout=True,
+                                  sharex=True,
+                                  figsize=(6, 12))
+    x_min = 0.8
+    x = np.linspace(x_min, 3, 500)
+    r = 1. / x
+    ax.plot(x, 4 * (np.power(r, -12) - np.power(r,-6)),
+             color="k")
+
+
+    # AXIS TICK LABELS
+    ax.set_ylim(-2, 2)
+    ax.set_xlim(x_min, None)
+    ax.set_ylabel(r'$\Phi ~ (E_{LJ}/\epsilon)$ [-]')
+
+    ax1.plot(x, -24*(np.power(r,6)-2)/(np.power(r,13)),
+            color="k")
+
+    # AXIS TICK LABELS
+    ax1.set_ylim(-2, 2)
+    ax1.set_xlim(x_min, None)
+    ax1.set_xlabel(r'$\frac{R}{\sigma}$ [-]')
+    ax1.set_ylabel(r'$\nabla\Phi ~ (F\sigma/\epsilon)$ [-]')
+
+    # GLOBAL
+    ax.axhline(0, ls="dotted", color="gray")
+    ax.axhline(-1, ls="dotted", color="gray")
+    ax.axvline(1, ls="dotted", color="gray")
+    ax1.axhline(0, ls="dotted", color="gray")
+    ax1.axvline(1, ls="dotted", color="gray")
+
+    ax.set_title(
+        r'$by~L. Welzel~and~C. Slaughter$'
+        f'\n\nArgon: LJ-Potential',
+        fontsize=11)
+    ax1.set_title(
+        f'Argon: LJ-Force',
+        fontsize=11)
+    fig.suptitle(f'LJ-Potential & Force', fontsize=20, weight="bold")
+    plt.show()
+
 
 def main():
     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(Path("MD_simulation.h5"))
-    #plotly_3d_static(pos, vel, header)
-    #mpl_plot_pair_corr(header, pos)
-    #mpl_plot_energy(header, kinetic_energy)
-    mpl_plot_energy_cons(kinetic_energy, potential_energy)
+    plotly_3d_static(pos, vel, header)
+    mpl_plot_pair_corr(header, pos)
+    mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
 
 if __name__ == "__main__":
     main()

@@ -41,6 +41,7 @@ class MolDyn(object):
         # give instance to class
         self.__class__.sim = self
         self.name = name
+        self.rng = np.random.default_rng()
 
         # META PLOTTING
         # [Rescaling, other, other]
@@ -61,8 +62,8 @@ class MolDyn(object):
         self.box_length = (self.n_particles/ self.init_density)**(1/3)
 
         # SAVE PARAMETERS
+        self.dir_location = Path(file_location)
         self.file_location = Path(file_location) / (name + ".h5")
-        self.file_location = self.file_location
         self.file = h5py.File(self.file_location, "w")
         self.__h5_position_name__ = "position"
         self.__h5_velocity_name__ = "velocity"
@@ -152,11 +153,17 @@ class MolDyn(object):
         self.target_temperature = temperature
         self.target_kinetic_energy = (self.n_dim - 1) * 3 / 2 * 1 * self.target_temperature
         # relaxation
+        self.state = "gaseous" if (self.target_temperature > 1. and self.init_density < 1.) else "not gaseous"
+        print(f"Conservative state of matter assumption for relaxation: Matter is {self.sim.state}.")
         self.scale = 1.
-        self.relaxation_steps = 100
+        self.scale_tracker = np.ones(3)
+        self.i_scale = 0
+        self.relaxation_steps = int(np.minimum(75 * (1 / self.init_density),
+                                               self.n_steps * 0.9))
+
         # if the number of relaxation steps is small the relaxation_threshold should be small
-        # 1% error is acceptable if the first relaxation dip is within relaxation_steps
-        self.relaxation_threshold = 0.01
+        # 5% error is acceptable if the first relaxation dip is within relaxation_steps
+        self.relaxation_threshold = 0.01 # * self.target_temperature
         self.relaxation_curve = np.zeros_like(self.kinetic_energy)
 
     def __repr__(self):
@@ -191,7 +198,18 @@ class MolDyn(object):
             if initial_positions is None:
                 initial_positions = np.zeros((n_particles, self.n_dim, 1))
             if initial_velocities is None:
-                initial_velocities = np.zeros((n_particles, self.n_dim, 1))
+                # including first relaxation step
+                rnd_vel = self.rng.normal(0., 1., size=(n_particles, self.n_dim, 1))
+                ekin = 0.5 * np.sum([np.square(np.linalg.norm(vel))
+                                     for vel in rnd_vel])
+                scale = np.sqrt(self.target_kinetic_energy / ekin)
+                initial_velocities = rnd_vel * scale
+                # total momentum should be zero in each axis, all particles have the same mass
+                mean_vel = np.mean([vel
+                                    for vel in initial_velocities], axis=0)
+                initial_velocities -= mean_vel
+
+
             if initial_acc is None:
                 initial_acc = np.zeros((n_particles, self.n_dim, 1))
 
@@ -210,14 +228,26 @@ class MolDyn(object):
         rescale = np.inf
 
         print(f"Rescaling problem...\n"
-              f"\tAcceptable relative error in kinetic energies: {self.relaxation_threshold:.2e}")
+              f"\tAcceptable relative error in kinetic energies: {self.relaxation_threshold:.2e}\n"
+              f"\tTaking {self.relaxation_steps} steps for each relaxation run.")
         while not np.allclose(rescale, 1., rtol=0., atol=self.relaxation_threshold):
             for __ in np.arange(self.relaxation_steps):
                 self.tick()
 
             rescale = self.rescale_velocity()  # resets particle history
             self.current_step = 0
+            self.time = 0.
 
+        # from scipy.optimize import minimize
+        # res = minimize(self.rescale_opt, 1.,
+        #                method="SLSQP",
+        #                bounds=[(0., None)],
+        #                options={"ftol": self.relaxation_threshold,
+        #                         })
+        #
+        # self.scale = res.x
+        # for particle in self.__instances__:
+        #     particle.vel *= self.scale
 
 
         print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
@@ -228,12 +258,31 @@ class MolDyn(object):
                      "time_total": self.time_total,
                      "box_length": self.box_length,
                      "timestep": self.current_timestep,
-                     "target_kinetic_energy": self.target_kinetic_energy
+                     "target_kinetic_energy": self.target_kinetic_energy,
+                     "density": self.init_density,
+                     "temperature": self.target_temperature
                      }
 
         # Store metadata in hdf5 file
         for k in meta_dict.keys():
             self.file.attrs[k] = meta_dict[k]
+
+    def rescale_opt(self, rescale):
+        rescale = rescale[0]
+        print(f"\tAttempt rescale with \tlambda: {rescale :.5e}")
+        for particle in self.__instances__:
+            particle.vel *= rescale
+
+        for __ in np.arange(self.relaxation_steps):
+            self.tick()
+
+        rescale = self.rescale_velocity(rescale=rescale)  # resets particle history
+        self.current_step = 0
+        self.time = 0.
+
+        print(np.abs(rescale - 1.))
+
+        return np.abs(rescale - 1.)
 
 
     def run(self):
@@ -454,8 +503,6 @@ class MolDyn(object):
         # np.einsum('ij,ij->j',
         #           particle.vel[self.current_step],
         #           particle.vel[self.current_step])
-        l = np.array([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
-                             for particle in self.__instances__])
         # print()
         # print(f"\t\t\t\tmean ekin: {np.mean(l):.2e} \t median ekin: {np.median(l):.2e}\n"
         #       f"\t\t\t\tmin ekin: {np.min(l):.2e} \t max ekin: {np.max(l):.2e}")
@@ -467,32 +514,58 @@ class MolDyn(object):
     def sine_curve(x, a, b, c, d):
         return a * np.sin(b * x + c) + d
 
-    def rescale_velocity(self):
+    def rescale_velocity(self, rescale=None):
         try:
-            step_relaxation_dip = np.minimum(int(argrelextrema(self.kinetic_energy[:self.current_step], np.less)[0][0] * 1.1),
-                                             self.current_step)
+            step_last_relaxation_dip = argrelextrema(self.kinetic_energy[:self.current_step], np.less)[0][-1]
+            step_last_relaxation_peak = argrelextrema(self.kinetic_energy[:self.current_step], np.greater)[0][-1]
+            step_diff = np.abs(step_last_relaxation_peak - step_last_relaxation_dip)
+
+            start, stop = np.sort([step_last_relaxation_dip, step_last_relaxation_peak])
+
+            start, stop = start - step_diff * 0.2, stop + step_diff * 0.2
+            start, stop = int(np.maximum(start, 0)), int(np.minimum(stop, self.current_step))
+
+
         except IndexError:
-            step_relaxation_dip = self.current_step
+            start, stop = 0, self.current_step
 
-        p0 = [(np.max(self.kinetic_energy[:step_relaxation_dip])
-               - np.min(self.kinetic_energy[:step_relaxation_dip])) / 2,
-              1 / np.abs(np.argmin(self.kinetic_energy[:step_relaxation_dip])
-                         - np.argmax(self.kinetic_energy[:step_relaxation_dip])),
-              np.argmax(np.abs(self.kinetic_energy[:step_relaxation_dip])) * 2.,
-              np.mean(self.kinetic_energy[:step_relaxation_dip])]
+        p0 = [(np.max(self.kinetic_energy[start:stop])
+               - np.min(self.kinetic_energy[start:stop])) / 2,
+              1 / np.abs(np.argmin(self.kinetic_energy[start:stop])
+                         - np.argmax(self.kinetic_energy[start:stop])),
+              np.argmax(np.abs(self.kinetic_energy[start:stop])) * 2.,
+              np.mean(self.kinetic_energy[start:stop])]
 
-        para, __ = curve_fit(self.sine_curve,
-                             np.arange(len(self.kinetic_energy[:step_relaxation_dip]), dtype=float),
-                             self.kinetic_energy[:step_relaxation_dip],
-                             p0=p0)
+        try:
+            para, __ = curve_fit(self.sine_curve,
+                                 np.arange(len(self.kinetic_energy[start:stop]), dtype=float),
+                                 self.kinetic_energy[start:stop],
+                                 p0=p0)
+            ekin = para[-1]
+            if ekin < 0:
+                ekin = np.mean(self.kinetic_energy[start:stop])
 
+        except (RuntimeError, TypeError):
+            ekin = np.mean(self.kinetic_energy[start:stop])
+            para = [1./1000, 1./1000, 0, ekin]
 
-        ekin = -1. # para[-1]  # self.get_ekin()
-        if ekin < 0:
-            ekin = np.mean(self.kinetic_energy[:self.current_step])
-
+        # if self.sim.state == "gaseous":
+        #     scale = np.sqrt(self.target_kinetic_energy / ekin)
+        #     self.scale = scale
+        # else:
         scale = np.sqrt(self.target_kinetic_energy / ekin)
-        self.scale *= scale
+        new_scale = self.scale * scale
+
+        np.put(self.scale_tracker, ind=self.i_scale, v=scale, mode="wrap")
+        self.i_scale += 1
+
+        if ((((np.argmin(self.scale_tracker)) == 1 or (np.argmax(self.scale_tracker) == 1))
+                and (self.i_scale >= 2))
+                and (self.state != "gaseous")):
+            self.scale *= np.mean(self.scale_tracker[1:])
+            print(f"Detecting oscillation in rescaling, ")
+        else:
+            self.scale *= scale
 
         if self.plot_which[0]:
             if self.plot_init[0]:
@@ -502,9 +575,10 @@ class MolDyn(object):
                                        num="relaxation")
                 self.plot_init[0] = False
 
-            alpha = np.clip(1. / (1. + 10 * np.abs(self.target_kinetic_energy - ekin)) ** 2, a_min=0.1, a_max=1.)
+            alpha = np.clip(1. / (1. + np.abs(self.target_kinetic_energy - ekin)), a_min=0.1, a_max=1.)
 
-            estimated = self.sine_curve(np.arange(len(self.kinetic_energy[:self.current_step]) + 100),
+            overshoot = 100
+            estimated = self.sine_curve(np.arange(len(self.kinetic_energy[start:stop]) + overshoot),
                                         *para)
 
             fig = plt.figure("relaxation")
@@ -512,34 +586,42 @@ class MolDyn(object):
             ax.set_yscale("log")
 
             if np.allclose(scale, 1., rtol=0., atol=self.relaxation_threshold):
-                ax.plot(self.kinetic_energy[:self.current_step], c="black", label="Actual", alpha=alpha)
-                ax.plot(estimated, c="red", label="Estimated", ls="dashed", alpha=alpha)
+                ax.plot(self.kinetic_energy[1:self.current_step], c="black", label="Actual", alpha=alpha)
+                ax.plot(np.arange(start, stop + overshoot), estimated, c="red", label="Estimated", ls="dashed", alpha=alpha)
                 ax.axhline(self.target_kinetic_energy, ls="solid", c="green", label="Target", alpha=alpha)
                 ax.axhline(para[-1], ls="dashed", c="gray", label="Rescaling Energy", alpha=alpha)
-                ax.axvline(step_relaxation_dip, ls="dotted", c="magenta", label="Relaxation Dip", alpha=alpha)
+                ax.axvline(start, ls="dotted", c="magenta", label="Fit Start", alpha=alpha)
+                ax.axvline(stop, ls="dashed", c="pink", label="Fit Stop", alpha=alpha)
 
                 ax.set_xlabel(r'step [-]')
                 ax.set_ylabel(r'$E_{kin}$ [-]')
                 ax.set_title(f'Kinetic Energy')
                 ax.legend()
                 ax.set_yscale("log")
-                #plt.show()
+                plt.show()
             else:
-                ax.plot(self.kinetic_energy[:self.current_step], c="black", alpha=alpha)
-                ax.plot(estimated, c="red", ls="dashed", alpha=alpha)
+                ax.plot(self.kinetic_energy[1:self.current_step], c="black", alpha=alpha)
+                ax.plot(np.arange(start, stop + overshoot), estimated, c="red", ls="dashed", alpha=alpha)
                 ax.axhline(para[-1], ls="dashed", c="gray", alpha=alpha)
-                ax.axvline(step_relaxation_dip, ls="dotted", c="magenta", alpha=alpha)
+                ax.axvline(start, ls="dotted", c="magenta", alpha=alpha)
+                ax.axvline(stop, ls="dashed", c="pink", alpha=alpha)
 
             # ax.set_xlabel(r'step [-]')
+            # ax.axhline(self.target_kinetic_energy, ls="solid", c="green"
+            #            )
             # ax.set_ylabel(r'$E_{kin}$ [-]')
             # ax.set_title(f'Kinetic Energy')
-            # ax.legend()
             # ax.set_yscale("log")
             # plt.show()
 
         print(f"\t\tRescaling:\tlambda: {self.scale :.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
         for particle in self.__instances__:
             particle.reset_scaling_lap()
-            particle.vel *= self.scale
+            if self.state == "gaseous":
+                particle.vel *= scale
+            else:
+                particle.vel *= self.scale
         return scale
+
+
 
