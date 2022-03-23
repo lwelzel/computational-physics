@@ -336,10 +336,10 @@ class MolDyn(object):
 
         # prepare potential for virial for pressure
         # multiply by 0.5^2 because we iterate over all pairs (i.e. all pairs get counted twice)
-        # self.potential_energy = self.potential_energy * 0.5 ** 2
+        #self.potential_energy = self.potential_energy * 0.5 ** 2
         # pressure in dimensionless units
         # assume that we preserve the target temperature during the simulation
-        self.pressure = 1 - 1 / (3 * self.n_dim * 1 * self.target_temperature) * self.potential_energy * 0.5 ** 2
+        self.pressure = 1 - 1 / (3 * self.n_dim * 1 * self.target_temperature) * self.potential_energy
 
         # save statistical properties
         # print("Saving simulation progress (statistics)")
