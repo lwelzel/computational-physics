@@ -142,7 +142,7 @@ class Particle(object):
         for other in np.ma.array(self.sim.instances, mask=self.mask).compressed():
             force, potential = self.get_force_potential(other, future_step)
             # TODO: half it here because it evaluates it twice for every particle pair
-            self.sim.potential_energy[self.sim.current_step + future_step] += 0.5 ** 2 * potential
+            self.sim.potential_energy[self.sim.current_step + future_step] += potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
             # if self.__id__ == 8: # np.sum(np.abs(force)) > 1000.:
             #     print(self.__id__, other.__id__)
@@ -153,6 +153,7 @@ class Particle(object):
             #     print(f"Force:     {np.sqrt(np.sum(np.square(force))).astype(float):.3e}")
             #     print(f"Potential: {potential[0]:.3e}")
             #     print(f"Distance:  {np.sqrt(np.sum(np.square(self.dpos))).astype(float):.3e}")
+        self.sim.potential_energy[self.sim.current_step + future_step] = 0.5 ** 2 * self.sim.potential_energy[self.sim.current_step + future_step]
         #
         # # print(self.force[self.sim.current_step + future_step])
         # print()
