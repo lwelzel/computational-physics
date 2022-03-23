@@ -7,7 +7,7 @@ from argon_class import Argon
 def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=250,
                       time_total=0.49e0, initial_timestep=2.e-3,
                       max_steps=1e6, max_real_time=3 * 60,
-                      density=0.3, temperature=3.):
+                      density=.8, temperature=1):
     # TODO: mass might be array
     # TODO: setup should accept external initial_pos, vel, acc
 
@@ -19,7 +19,7 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=250,
            time_total=time_total, initial_timestep=initial_timestep,
            max_steps=max_steps, max_real_time=max_real_time,
            temperature=temperature, density=density,
-           file_location=Path(".\simulation_data"),
+           file_location=Path("simulation_data"),
            name="MD_simulation")
     # general
     shape = (n_particles, n_dim, 1)

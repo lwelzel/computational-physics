@@ -137,19 +137,24 @@ class Particle(object):
         #  If np.ma.array(arr, mask) stores a reference to arr instead of the thing itself that should work
         # TODO: make an interpolant for this function so it does not need to be computed at every step
         # TODO: equal an opposite reaction: compute forces just once
+        
+        self.sim.pressure[self.sim.current_step] = 0
 
         for other in np.ma.array(self.sim.instances, mask=self.mask).compressed():
-            force, potential = self.get_force_potential(other, future_step)
+            force, potential, pressure_term = self.get_force_potential(other, future_step)
             # TODO: half it here because it evaluates it twice for every particle pair
             self.sim.potential_energy[self.sim.current_step + future_step] += potential
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
+            self.sim.pressure[self.sim.current_step] +=  pressure_term
 
-        self.sim.potential_energy[self.sim.current_step + future_step] = 0.5 ** 2 * self.sim.potential_energy[self.sim.current_step + future_step]
+        self.sim.potential_energy[self.sim.current_step + future_step] = 0.5 * self.sim.potential_energy[self.sim.current_step + future_step]
+        self.sim.pressure[self.sim.current_step] = self.sim.pressure[self.sim.current_step]
 
 
     def get_force_potential(self, other, future_step=0):
         dist, vector = self.get_distance_absoluteA1(other, future_step)
-        return self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist)
+        currdist, trash = self.get_distance_absoluteA1(other)
+        return self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist), self.force_lennard_jones(currdist)*currdist
 
     def force_lennard_jones(self, r):
         #sigma_r_ratio = self.__class__.sigma / r

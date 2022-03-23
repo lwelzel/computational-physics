@@ -272,8 +272,24 @@ def mpl_plot_pair_corr(header, pos):
     return
 
 
-def mpl_plot_pressure(sim):
-    return
+def mpl_plot_pressure(pressure_terms, header):
+	pressure_terms =  0.5 ** 2 * pressure_terms[1:]
+	fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True, figsize=(7, 5))
+	T = header["temperature"]
+	rho = header["density"]
+	n_particles = header["n_particles"]
+	
+	avg_pressure = T*rho - 1/(3*n_particles*T)*np.mean(pressure_terms)
+	pressures = T*rho - rho/(3*n_particles*T)*(pressure_terms)
+	
+	ax.plot(pressures, c="black")
+	ax.set_xlabel(r'$step$ [-]')
+	ax.set_ylabel(r'$P$ [-]')
+	ax.set_ylim(0,2)
+	ax.set_title('Pressure vs. Time (Average Pressure = {:.3f})'.format(avg_pressure))
+	plt.show()
+	
+	return
 
 def mpl_plot_energy(header, kinetic_energy):
 
@@ -352,14 +368,15 @@ def plot_lj():
 
 
 def main():
-    files = Path(".\simulation_data").rglob("*.h5")
+    files = Path("simulation_data").rglob("*.h5")
     files = np.array([path for path in files]).flatten()
     for file in np.flip(files):
         print(file)
         header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
         plotly_3d_static(pos, vel, header)
         # mpl_plot_pair_corr(header, pos)
-        mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+        #mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+        mpl_plot_pressure(pressure, header)
         break
 
 if __name__ == "__main__":
