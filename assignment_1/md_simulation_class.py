@@ -53,7 +53,6 @@ class MolDyn(object):
         self.__class__.sim = self
         self.name = name
         self.rng = np.random.default_rng()
-        hash = id
 
         # META PLOTTING
         # [Rescaling, other, other]
@@ -187,13 +186,15 @@ class MolDyn(object):
         self.scale = 1.
         self.scale_tracker = np.ones(3)
         self.i_scale = 0
-        self.relaxation_steps = int(np.minimum(100 * (1 / self.init_density),
+        # hot and sparse media need much longer to relax:
+        self.relaxation_steps = int(np.minimum(100 * self.target_temperature * (1 / self.init_density),
                                                self.n_steps * 0.9))
 
         # if the number of relaxation steps is small the relaxation_threshold should be small
-        # 5% error is acceptable if the first relaxation dip is within relaxation_steps
+        # 1% error per 1 T is acceptable if the first relaxation dip is within relaxation_steps
         self.relaxation_threshold = 0.01 * self.target_temperature  # * self.target_temperature
         self.relaxation_curve = np.zeros_like(self.kinetic_energy)
+        self.relaxed = True
 
     def __repr__(self):
         return f"\nMolecular Dynamics Simulation\n" \
@@ -248,8 +249,6 @@ class MolDyn(object):
                                                                        initial_acc):
                 species(self, initial_position, initial_velocity, initial_acc)
 
-        # check if both self.__species__ and self.__instances__ are full (no None)
-        # TODO: check if needed and stable
         self.setup_mic()
         self.normalize_problem()
         #print('Normalization complete.')
@@ -272,6 +271,18 @@ class MolDyn(object):
             self.lap_sim(scaling_lap=True, scale=rescale)
             i_r += 1
             if i_r > 20:
+                fig = plt.figure("relaxation")
+                ax = fig.axes[0]
+                ax.set_yscale("log")
+                ax.set_xlabel(r'step [-]')
+                ax.set_ylabel(r'$E_{kin}$ [-]')
+                ax.set_title(f'Kinetic Energy')
+                ax.legend()
+                ax.set_yscale("log")
+                plt.savefig(fname=(self.dir_location / "rescaling_images") / f"relaxation{self.name[:-3]}.png",
+                            dpi=300, format="png")
+
+                self.relaxed = False
                 break
 
         #print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
@@ -284,7 +295,8 @@ class MolDyn(object):
                      "timestep": self.current_timestep,
                      "target_kinetic_energy": self.target_kinetic_energy,
                      "density": self.init_density,
-                     "temperature": self.target_temperature
+                     "temperature": self.target_temperature,
+                     "relaxed": self.relaxed
                      }
 
         # Store metadata in hdf5 file
@@ -341,16 +353,13 @@ class MolDyn(object):
                     f"\t\tRemaining simulation time: {timedelta(seconds=self.get_real_time(self.time_total - self.time))} " \
                     f"({self.time / self.time_total:.1f}% completed)\n"
             except AssertionError as e:
-                print(e)
+                # print(e)
                 self.sim_running = False
                 break
             finally:
                 self.save_block()
-                # TODO: if below block is commented out and in reset_lap() the initial values are reset
-                #  we get a measure for the stability of the program
                 self.lap_sim()
 
-                # TODO: set up new iteration using last vales as initial values
 
         self.file.close()
         plt.close('all')
@@ -461,39 +470,9 @@ class MolDyn(object):
                                 https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
         :sets: normalized parameters
         """
-        
-        
-        # self.av_particle_mass = np.mean([particle.particle_mass for particle in self.instances])
-        # self.av_particle_sigma = np.mean([particle.sigma for particle in self.instances])
-        # self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
-
-        # bk = Constants.bk
-        # TODO: remove when passing normalized box length
-        # self.box_length *= 1 / self.av_particle_sigma
-        
-        # self.current_timestep *= np.sqrt(self.av_particle_epsilon /
-        #                                  (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))  # average particle mass
-        #
-        # self.time_total *= np.sqrt(self.av_particle_epsilon /
-        #                            (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))
-
-        # self.temperature *= Constants.bk / self.av_particle_epsilon
-        # self.potential_energy *= 1 / self.av_particle_epsilon
-        # self.kinetic_energy *= 1 / self.av_particle_epsilon
-        # self.pressure *= np.power(self.av_particle_sigma, 3) / self.av_particle_epsilon
-        # self.density *= np.power(self.av_particle_sigma, self.n_dim)
-        # self.surface_tension *= np.power(self.av_particle_sigma, 2) / self.av_particle_epsilon
-
-        # iterate over particles and normalize values
-        # for type (what a shitty name) in species:
-
-        # for spec in self.__species__:
-        #     spec.normalize_class()
-
 
         for particle in self.instances:
             particle.normalize_particle()
-
 
         # TODO: this should be in a class method, like this redundant class
         for species in self.__species__:
@@ -506,19 +485,11 @@ class MolDyn(object):
         for particle in self.instances:
             particle.set_resulting_force()
 
-    def track_properties(self):
-        # TODO: track temperature
-        # TODO: track energy
-        return
-
     def get_ekin(self):
+        # TODO: Use einsteinsum notation for speeeed
         # np.einsum('ij,ij->j',
         #           particle.vel[self.current_step],
         #           particle.vel[self.current_step])
-        # print()
-        # print(f"\t\t\t\tmean ekin: {np.mean(l):.2e} \t median ekin: {np.median(l):.2e}\n"
-        #       f"\t\t\t\tmin ekin: {np.min(l):.2e} \t max ekin: {np.max(l):.2e}")
-        # print()
         return 0.5 * np.sum([particle.mass * np.sum(np.square((particle.vel[self.current_step])))
                              for particle in self.__instances__])
 
@@ -562,12 +533,6 @@ class MolDyn(object):
         if ekin < 0:
             ekin = np.mean(self.kinetic_energy[start:stop])
 
-
-
-        # if self.sim.state == "gaseous":
-        #     scale = np.sqrt(self.target_kinetic_energy / ekin)
-        #     self.scale = scale
-        # else:
         scale = np.sqrt(self.target_kinetic_energy / ekin)
 
         np.put(self.scale_tracker, ind=self.i_scale, v=scale, mode="wrap")
@@ -623,23 +588,14 @@ class MolDyn(object):
                 ax.axvline(stop, ls="dashed", c="pink", alpha=alpha)
 
         #print(f"\t\tRescaling:\tlambda: {self.scale :.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
-
-        # for particle in self.__instances__:
-        #     if self.state == "gaseous":
-        #         particle.vel *= scale
-        #         # print(particle.vel[self.current_step])
-        #     else:
-        #         particle.vel *= self.scale
         return scale
 
     def lap_sim(self, scaling_lap=False, scale=np.nan):
         if scaling_lap:
             for particle in self.instances:
-                # print(particle.vel[self.current_step])
                 particle.reset_scaling_lap()
                 if self.state == "gaseous":
                     particle.vel *= scale
-                    # print(particle.vel[self.current_step])
                 else:
                     particle.vel *= self.scale
         else:

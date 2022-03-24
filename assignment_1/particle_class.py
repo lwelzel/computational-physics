@@ -49,9 +49,7 @@ class Particle(object):
         # since particles have a reference to MolDyn (sim) and a MolDyn.sim has references to particles
         # we should use *weak* references to avoid memory leaks the issues should be fixed in Python >3.7 but still
         self.sim.instances[self.__instance_loc__] = self
-        # mask out the particle itself so it is not double counted
-        # TODO: this can be better implemented using a diagonal square bool matrix (false on diagonal)
-        # TODO: MD sim class should have this and then check np.nonzero(occupation - self.id)
+        # mask out the particle itself, so it is not double counted
         self.mask = np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__-1]).compressed()
 
         # INTEGRATOR
@@ -101,7 +99,6 @@ class Particle(object):
         return f"\nParticle Class __repr__ not implemented.\n"
 
     def wrap_d_vector(self):
-        # self.dpos[:] = (self.dpos + self.sim.box2) % self.sim.box - self.sim.box2
         self.k[:] = self.dpos[:] \
                     * self.sim.box2_r  # this casts the result to int, finding in where the closest box is
         self.dpos[:] = self.dpos[:] - self.k * self.sim.box  # casting back to float must be explicit
@@ -122,15 +119,7 @@ class Particle(object):
         return np.sqrt(np.einsum('ij,ij->j', self.dpos, self.dpos)), self.dpos
 
     def set_resulting_force(self, future_step=0):
-        # TODO: can this masked array be defined before and not new at every step?
-        #  If np.ma.array(arr, mask) stores a reference to arr instead of the thing itself that should work
-        # TODO: make an interpolant for this function so it does not need to be computed at every step
-        # TODO: equal an opposite reaction: compute forces just once
-
-        # self.force[self.sim.current_step + future_step] = 0.
-
         for other in np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__-1]).compressed():
-            # force, potential, pressure_term = self.get_force_potential(other, future_step)
             force, potential, pressure_term = self.sim.get_force_potential(self.pos[self.sim.current_step + future_step],
                                                                            other.pos[self.sim.current_step + future_step],
                                                                            self.sim.box2_r, self.sim.box)
@@ -147,19 +136,12 @@ class Particle(object):
         return self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist), self.force_lennard_jones(dist) * dist
 
     def force_lennard_jones(self, r):
-        #sigma_r_ratio = self.__class__.sigma / r
         return - 24*(np.power(r,6)-2)/(np.power(r,13))
-        # return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
-#                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
     def potential_lennard_jones(self, r):
-        #sigma_r_ratio = self.__class__.sigma / r
         return 4 * (np.power(r, -12) - np.power(r,-6))
 
     def propagate_explicit_euler(self):
-        """"
-        I am actually not sure if this is still correct.
-        """
         self.dpos[:] = self.pos[self.sim.current_step] \
                        + self.vel[self.sim.current_step] * self.sim.current_timestep
         self.wrap_d_vector()
@@ -171,11 +153,6 @@ class Particle(object):
         return
 
     def propagate_Verlet_pos(self):
-        """
-
-        :return:
-        """
-
         self.dpos[:] = self.pos[self.sim.current_step] \
                        + self.vel[self.sim.current_step] * self.sim.current_timestep \
                        + self.force[self.sim.current_step] * np.square(self.sim.current_timestep) \
@@ -195,29 +172,8 @@ class Particle(object):
         return
 
     def normalize_particle(self):
-        """
-        Bad name
-        Normalize parameters of simulation based on
-                                https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
-        :sets: normalized parameters
-        """
-
         self.mask = np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__ - 1]).compressed()
 
-        # TODO: make this a class method which then iterates over all particles of a species
-        # iterate over particles and normalize values
-        # TODO: remove when passing normalized box length/ positions
-        # self.pos *= 1 / self.__class__.sigma
-
-        # self.vel *= 1 / np.sqrt(self.__class__.internal_energy /
-        #                         (self.__class__.particle_mass))
-        # self.acc *= 1 / self.__class__.sigma * \
-        #             1 / (self.__class__.internal_energy /
-        #                  (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
-        #
-        # self.force *= self.__class__.sigma / self.__class__.internal_energy
-
-        # self.set_resulting_force()
 
 
     def reset_lap(self):
@@ -239,12 +195,6 @@ class Particle(object):
         else:
             self.pos[0] = self.initial_pos  # self.pos[self.sim.current_step, :]  # self.initial_pos
             self.vel[0] = self.initial_vel  # self.vel[self.sim.current_step, :]  # self.initial_vel
-
-
-        #print(self.pos[0])
-        # print(self.vel[:self.sim.current_step])
-        # print(np.argwhere(np.nonzero(self.vel)))
-
 
         zeros = np.zeros_like(self.pos)
         self.pos[1:] = zeros[1:]

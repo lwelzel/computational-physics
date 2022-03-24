@@ -388,14 +388,14 @@ def mpl_plot_pair_corr(header, pos):
 
 
 def mpl_plot_pressure(pressure_terms, header):
-    pressure_terms = - 0.5 * pressure_terms
+    pressure_terms = 0.5 * pressure_terms
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True, figsize=(7, 5))
     T = header["temperature"]
     rho = header["density"]
     n_particles = header["n_particles"]
 
-    avg_pressure = (1 - 1 / (3 * n_particles * T) * np.mean(pressure_terms))
-    pressures = (1 - 1 / (3 * n_particles * T) * (pressure_terms))
+    avg_pressure = T * rho * (1 - 1 / (3 * n_particles * T) * np.mean(pressure_terms))
+    pressures = T * rho * (1 - 1 / (3 * n_particles * T) * (pressure_terms))
 
     ax.plot(pressures, c="black")
     ax.set_xlabel(r'$step$ [-]')
@@ -426,14 +426,24 @@ def mpl_plot_energy_cons(header, kinetic_energy, potential_energy):
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(7, 5))
-    ax.plot(potential_energy[np.nonzero(kinetic_energy)], label='Potential')
-    ax.plot(kinetic_energy[np.nonzero(kinetic_energy)], label='Kinetic')
-    ax.plot(tot_energy, label='Total')
-    ax.axhline(header["target_kinetic_energy"], label="Target Kinetic", c="gray", ls="dashed")
+    ax.plot(np.abs(potential_energy[np.nonzero(kinetic_energy)] / potential_energy[np.nonzero(kinetic_energy)][0]),
+            label=r'|$E_{pot}/E_{pot}(0)|$ [-]', ls="dotted")
+    ax.plot(kinetic_energy[np.nonzero(kinetic_energy)] / header["target_kinetic_energy"],
+            label=r'$E_{kin} / E_{kin, ~target}$ [-]', ls="dashed")
+    ax.plot(np.abs(tot_energy / tot_energy[0]), label=r'$|E_{tot}/E_{pot}(0)|$ [-]', ls="solid")
+    # ax.axhline(header["target_kinetic_energy"]/header["target_kinetic_energy"], label=r"$E_{kin, ~target} / E_{kin, ~target}$", c="gray", ls="dashed")
+
+    # ax.plot(potential_energy[np.nonzero(kinetic_energy)],
+    #         label=r'|$E_{pot}/E_{pot}(0)|$ [-]', ls="dotted")
+    # ax.plot(kinetic_energy[np.nonzero(kinetic_energy)],
+    #         label=r'$E_{kin} / E_{kin, ~target}$ [-]', ls="dashed")
+    # ax.plot(tot_energy, label=r'$|E_{tot}/E_{pot}(0)|$ [-]', ls="solid")
+    # ax.axhline(header["target_kinetic_energy"], label=r"$E_{kin, ~target} / E_{kin, ~target}$", c="gray", ls="dashed")
+
     ax.set_xlabel(r'$step$ [-]')
     ax.set_ylabel(r'Energy [-]')
     ax.set_title(f'Simulation Energy vs Time')
-    # ax.set_ylim(0., None)
+    # ax.set_yscale("log")
     ax.legend()
     plt.show()
 
@@ -498,8 +508,8 @@ def main():
         break
 
     # plot_lj()
-
     # get_pressure()
+    # get_corr()
 
 
 if __name__ == "__main__":
