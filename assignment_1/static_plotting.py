@@ -111,15 +111,21 @@ def plotly_3d_static(pos, vel, header):
     for idx in range(pos.shape[0]):
         df = pd.DataFrame(pos[idx])
         df.columns = ['x', 'y', 'z']
-        vdf=pd.DataFrame(vel[idx])
-        df['velocity'] = np.sqrt(vdf[0]**2+vdf[1]**2+vdf[2]**2)
-        
-        curr_atom=go.Scatter3d(x=df['x'], y=df['y'], z=df['z'], mode='markers', marker=dict(size=size, color = df['velocity'], cmin=np.min(df['velocity']), cmax=np.max(df['velocity']), colorscale='Viridis', line=dict(width=0)), hoverinfo='name')
+        vdf = pd.DataFrame(vel[idx])
+        df['velocity'] = np.sqrt(vdf[0] ** 2 + vdf[1] ** 2 + vdf[2] ** 2)
+
+        curr_atom = go.Scatter3d(x=df['x'], y=df['y'], z=df['z'], mode='markers',
+                                 marker=dict(size=size, color=df['velocity'], cmin=np.min(df['velocity']),
+                                             cmax=np.max(df['velocity']), colorscale='Viridis', line=dict(width=0)),
+                                 hoverinfo='name')
         fig.add_trace(curr_atom)
-        
-    colorbar_trace = go.Scatter3d(x=[None], y=[None], z=[None], mode='markers', marker=dict(colorscale='Viridis', cmin=np.min(df['velocity']), cmax=np.max(df['velocity']), colorbar=dict(thickness=20, title = 'Speed'),), hoverinfo='none')
+
+    colorbar_trace = go.Scatter3d(x=[None], y=[None], z=[None], mode='markers',
+                                  marker=dict(colorscale='Viridis', cmin=np.min(df['velocity']),
+                                              cmax=np.max(df['velocity']),
+                                              colorbar=dict(thickness=20, title='Speed'), ), hoverinfo='none')
     fig.add_trace(colorbar_trace)
-    
+
     fig.update_layout(showlegend=False)
     fig.show()
 
@@ -235,7 +241,7 @@ def mpl_plot_pair_corr(header, pos):
     volume = box_length ** n_dim
     box = SimBox(box_length, n_dim)
     # (particles, steps, n_dims)
-    pos = np.squeeze(pos[:, -1: :])
+    pos = np.squeeze(pos[:, -1::])
     # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
     comb_idx = np.transpose(np.triu_indices(len(pos), 1))
     pos_pairs = pos[comb_idx]
@@ -252,7 +258,7 @@ def mpl_plot_pair_corr(header, pos):
 
     hist, bin_edges = histogram(dist, bins=bins)
 
-    hist = 2 * volume / (n_particles * (n_particles-1)) \
+    hist = 2 * volume / (n_particles * (n_particles - 1)) \
            * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
            * hist
 
@@ -273,26 +279,26 @@ def mpl_plot_pair_corr(header, pos):
 
 
 def mpl_plot_pressure(pressure_terms, header):
-	pressure_terms =  0.5 ** 2 * pressure_terms[1:]
-	fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True, figsize=(7, 5))
-	T = header["temperature"]
-	rho = header["density"]
-	n_particles = header["n_particles"]
-	
-	avg_pressure = T*rho - 1/(3*n_particles*T)*np.mean(pressure_terms)
-	pressures = T*rho - rho/(3*n_particles*T)*(pressure_terms)
-	
-	ax.plot(pressures, c="black")
-	ax.set_xlabel(r'$step$ [-]')
-	ax.set_ylabel(r'$P$ [-]')
-	ax.set_ylim(0,2)
-	ax.set_title('Pressure vs. Time (Average Pressure = {:.3f})'.format(avg_pressure))
-	plt.show()
-	
-	return
+    pressure_terms = 0.5 ** 2 * pressure_terms[1:]
+    fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True, figsize=(7, 5))
+    T = header["temperature"]
+    rho = header["density"]
+    n_particles = header["n_particles"]
+
+    avg_pressure = T * rho - 1 / (3 * n_particles * T) * np.mean(pressure_terms)
+    pressures = T * rho - rho / (3 * n_particles * T) * (pressure_terms)
+
+    ax.plot(pressures, c="black")
+    ax.set_xlabel(r'$step$ [-]')
+    ax.set_ylabel(r'$P$ [-]')
+    ax.set_ylim(0, 2)
+    ax.set_title('Pressure vs. Time (Average Pressure = {:.3f})'.format(avg_pressure))
+    plt.show()
+
+    return
+
 
 def mpl_plot_energy(header, kinetic_energy):
-
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(7, 5))
@@ -304,6 +310,7 @@ def mpl_plot_energy(header, kinetic_energy):
     ax.set_title(f'Kinetic Energy')
     plt.show()
     return
+
 
 def mpl_plot_energy_cons(header, kinetic_energy, potential_energy):
     tot_energy = kinetic_energy[np.nonzero(kinetic_energy)] + potential_energy[np.nonzero(potential_energy)]
@@ -317,10 +324,12 @@ def mpl_plot_energy_cons(header, kinetic_energy, potential_energy):
     ax.set_xlabel(r'$step$ [-]')
     ax.set_ylabel(r'Energy [-]')
     ax.set_title(f'Simulation Energy vs Time')
+    # ax.set_ylim(0., None)
     ax.legend()
     plt.show()
-    
+
     return
+
 
 def plot_lj():
     import matplotlib.pyplot as plt
@@ -330,18 +339,17 @@ def plot_lj():
                                   figsize=(6, 12))
     x_min = 0.8
     x = np.linspace(x_min, 3, 500)
-    r = x # 1. / x
-    ax.plot(x, 4 * (np.power(r, -12) - np.power(r,-6)),
-             color="k")
-
+    r = x  # 1. / x
+    ax.plot(x, 4 * (np.power(r, -12) - np.power(r, -6)),
+            color="k")
 
     # AXIS TICK LABELS
     ax.set_ylim(-2, 2)
     ax.set_xlim(x_min, None)
     ax.set_ylabel(r'$\Phi ~ (E_{LJ}/\epsilon)$ [-]')
 
-    ax1.plot(x, -24*(np.power(r,6)-2)/(np.power(r,13)),
-            color="k")
+    ax1.plot(x, - 24 * (np.power(r, 6) - 2) / (np.power(r, 13)),
+             color="k")
 
     # AXIS TICK LABELS
     ax1.set_ylim(-3, 2)
@@ -375,9 +383,12 @@ def main():
         header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
         plotly_3d_static(pos, vel, header)
         # mpl_plot_pair_corr(header, pos)
-        #mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+        mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
         mpl_plot_pressure(pressure, header)
         break
+
+    # plot_lj()
+
 
 if __name__ == "__main__":
     main()

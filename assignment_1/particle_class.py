@@ -52,7 +52,7 @@ class Particle(object):
         # mask out the particle itself so it is not double counted
         # TODO: this can be better implemented using a diagonal square bool matrix (false on diagonal)
         # TODO: MD sim class should have this and then check np.nonzero(occupation - self.id)
-        self.mask = self.sim.occupation - self.__id__ == 0
+        self.mask = np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__-1]).compressed()
 
         # INTEGRATOR
         self.propagate_pos = self.propagate_Verlet_pos
@@ -113,7 +113,7 @@ class Particle(object):
         :param other: other instance of Particle (sub-) class
         :return: distance
         """
-        self.dpos[:] = other.pos[self.sim.current_step + future_step] - self.pos[self.sim.current_step + future_step]
+        self.dpos[:] = self.pos[self.sim.current_step + future_step] - other.pos[self.sim.current_step + future_step]
         self.wrap_d_vector()
 
     def get_distance_absoluteA1(self, other, future_step=0):
@@ -121,44 +121,39 @@ class Particle(object):
         # using the properties of the Einstein summation convention implementation in numpy, which is very fast
         return np.sqrt(np.einsum('ij,ij->j', self.dpos, self.dpos)), self.dpos
 
-    def get_distance_vectorB1(self, other):
-        """
-        Get the distance between two particles
-        Class B1 algorithm - positions and box are relative to one particle
-        :param other: other instance of Particle (sub-) class
-        :param other:
-        :return:
-        """
-        # TODO: implement and check performance
-        return
-
     def set_resulting_force(self, future_step=0):
         # TODO: can this masked array be defined before and not new at every step?
         #  If np.ma.array(arr, mask) stores a reference to arr instead of the thing itself that should work
         # TODO: make an interpolant for this function so it does not need to be computed at every step
         # TODO: equal an opposite reaction: compute forces just once
-        
-        self.sim.pressure[self.sim.current_step] = 0
 
-        for other in np.ma.array(self.sim.instances, mask=self.mask).compressed():
-            force, potential, pressure_term = self.get_force_potential(other, future_step)
-            # TODO: half it here because it evaluates it twice for every particle pair
-            self.sim.potential_energy[self.sim.current_step + future_step] += potential
+        # self.force[self.sim.current_step + future_step] = 0.
+
+        for other in np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__-1]).compressed():
+            # force, potential, pressure_term = self.get_force_potential(other, future_step)
+            force, potential, pressure_term = self.sim.get_force_potential(self.pos[self.sim.current_step + future_step],
+                                                                           other.pos[self.sim.current_step + future_step],
+                                                                           self.sim.box2_r, self.sim.box)
+
+
+
+            self.sim.potential_energy[self.sim.current_step + future_step] += potential * (future_step == 0)
+            self.sim.pressure[self.sim.current_step] += pressure_term * (future_step == 0)
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
-            self.sim.pressure[self.sim.current_step] +=  pressure_term
+            other.force[self.sim.current_step + future_step] = other.force[self.sim.current_step + future_step] - force
 
-        self.sim.potential_energy[self.sim.current_step + future_step] = 0.5 * self.sim.potential_energy[self.sim.current_step + future_step]
-        self.sim.pressure[self.sim.current_step] = self.sim.pressure[self.sim.current_step]
+
+        # self.sim.potential_energy[self.sim.current_step + future_step] = self.sim.potential_energy[self.sim.current_step + future_step]
+        # self.sim.pressure[self.sim.current_step] = self.sim.pressure[self.sim.current_step]
 
 
     def get_force_potential(self, other, future_step=0):
         dist, vector = self.get_distance_absoluteA1(other, future_step)
-        currdist, trash = self.get_distance_absoluteA1(other)
-        return self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist), self.force_lennard_jones(currdist)*currdist
+        return self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist), self.force_lennard_jones(dist) * dist
 
     def force_lennard_jones(self, r):
         #sigma_r_ratio = self.__class__.sigma / r
-        return 24*(np.power(r,6)-2)/(np.power(r,13))
+        return - 24*(np.power(r,6)-2)/(np.power(r,13))
         # return - 24.0 * self.__class__.internal_energy * np.power(sigma_r_ratio, 2) \
 #                * (2.0 * np.power(sigma_r_ratio, 12) - np.power(sigma_r_ratio, 6))
 
@@ -211,6 +206,9 @@ class Particle(object):
                                 https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
         :sets: normalized parameters
         """
+
+        self.mask = np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__ - 1]).compressed()
+
         # TODO: make this a class method which then iterates over all particles of a species
         # iterate over particles and normalize values
         # TODO: remove when passing normalized box length/ positions
@@ -248,11 +246,17 @@ class Particle(object):
             self.vel[0] = self.initial_vel  # self.vel[self.sim.current_step, :]  # self.initial_vel
 
 
+        #print(self.pos[0])
+        # print(self.vel[:self.sim.current_step])
+        # print(np.argwhere(np.nonzero(self.vel)))
+
+
         zeros = np.zeros_like(self.pos)
         self.pos[1:] = zeros[1:]
         self.vel[1:] = zeros[1:]
         self.force = zeros
         self.acc = zeros
+
 
     @classmethod
     def normalize_class(cls):

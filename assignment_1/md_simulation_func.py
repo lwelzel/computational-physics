@@ -2,23 +2,20 @@ import numpy as np
 from pathlib import Path
 from md_simulation_class import MolDyn
 from argon_class import Argon
+import static_plotting
 
 
 def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=250,
                       time_total=0.49e0, initial_timestep=2.e-3,
                       max_steps=1e6, max_real_time=3 * 60,
-                      density=.8, temperature=1):
-    # TODO: mass might be array
-    # TODO: setup should accept external initial_pos, vel, acc
-
-    # TODO: nothing
+                      density=1.2, temperature=0.5, id=0):
 
     # META
     rng = np.random.default_rng()
     MolDyn(n_particles=n_particles, n_dim=n_dim, n_steps=n_steps,
            time_total=time_total, initial_timestep=initial_timestep,
            max_steps=max_steps, max_real_time=max_real_time,
-           temperature=temperature, density=density,
+           temperature=temperature, density=density, id=id,
            file_location=Path("simulation_data"),
            name="MD_simulation")
     # general
@@ -61,18 +58,21 @@ def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=250,
     # show_3d_init_pos(initial_positions=initial_particle_position)
 
     argon = (Argon, n_particles, initial_particle_position, None, None)
-    print('Initialization complete.')
+    # print('Initialization complete.')
 
     MolDyn.sim.set_up_simulation(argon)
-    print('Relaxation complete.\n')
+    # print('Relaxation complete.\n')
 
 
 def run_md_simulation():
-    print("Running MD simulation.")
+    # print("Running MD simulation.")
     MolDyn.sim.run()
 
 
-def main():
+def main(n_particles=2 ** 3 * 4, n_dim=3, n_steps=250,
+         time_total=0.49e0, initial_timestep=2.e-3,
+         max_steps=1e6, max_real_time=3 * 60,
+         density=1.2, temperature=0.5, id=0):
     """
     Main wrapper for the MD simulation
     :param n_particles:
@@ -80,8 +80,10 @@ def main():
     :param n_steps:
     :return:
     """
-    intro()
-    set_up_simulation()
+    set_up_simulation(n_particles, n_dim, n_steps,
+                      time_total, initial_timestep,
+                      max_steps, max_real_time,
+                      density, temperature, id)
     run_md_simulation()
     return
 
@@ -110,8 +112,9 @@ def show_3d_init_pos(initial_positions):
 
 
 if __name__ == "__main__":
+    intro()
     main()
     # for development only
-    import static_plotting
-
-    static_plotting.main()
+    # import static_plotting
+    #
+    # static_plotting.main()

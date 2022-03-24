@@ -10,7 +10,15 @@ from datetime import timedelta
 from itertools import count
 from scipy.optimize import curve_fit
 from scipy.signal import argrelextrema
+from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+
+# hacky shit for numba and fast runtimes
+lj_cut_off = 2.
+__force = lambda r: - 24 * (np.power(r, 6) - 2) / (np.power(r, 13))
+__potential = lambda r: 4 * (np.power(r, -12) - np.power(r, -6))
+lj_force_offset = __force(lj_cut_off)
+lj_pot_offset = __potential(lj_cut_off)
 
 # np.can_cast(int, float, casting='safe')
 class MolDyn(object):
@@ -33,15 +41,19 @@ class MolDyn(object):
                  temperature=0.5, density=1.2,
                  file_location=Path(""),
                  name: str = ".\simulation_data",
+                 id=0.,
                  **kwargs):
 
         super(MolDyn, self).__init__()
+
+        print(f"Running MDS with -> Density: {density}\tTemperature: {temperature}\t#Particles: {n_particles}")
 
         # META PROPERTIES
         # give instance to class
         self.__class__.sim = self
         self.name = name
         self.rng = np.random.default_rng()
+        hash = id
 
         # META PLOTTING
         # [Rescaling, other, other]
@@ -61,12 +73,26 @@ class MolDyn(object):
         # TODO: remove mass scaling factor when passing normalized positions
         self.box_length = (self.n_particles/ self.init_density)**(1/3)
 
+        # this is the hacky-est stuff ever, but it does work
+        self.lj_cut_off = lj_cut_off
+        self.force = lambda r: - 24 * (np.power(r, 6) - 2) / (np.power(r, 13))
+        self.potential = lambda r: 4 * (np.power(r, -12) - np.power(r, -6))
+        self.lj_force_offset = self.force(self.lj_cut_off)
+        self.lj_pot_offset = self.potential(self.lj_cut_off)
+        self.r_samp = np.linspace(0.01, self.lj_cut_off, 1000)
+        self.force = lambda r: - 24 * (np.power(r, 6) - 2) / (np.power(r, 13)) - self.lj_force_offset
+        self.potential = lambda r: 4 * (np.power(r, -12) - np.power(r, -6)) - self.lj_pot_offset
+        self.force = interp1d(self.r_samp, self.force(self.r_samp),
+                              kind="cubic", bounds_error=False, fill_value=0., assume_sorted=True)
+        self.potential = interp1d(self.r_samp, self.potential(self.r_samp),
+                                  kind="cubic", bounds_error=False, fill_value=0., assume_sorted=True)
+
         # SAVE PARAMETERS
         self.dir_location = Path(file_location)
-        self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}.h5"
+        self.name = f"id={id}_run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}.h5"
         Path(self.dir_location).mkdir(parents=True, exist_ok=True)
         self.file_location = Path(file_location) / self.name
-        print(f"Run will be saved to: {self.file_location}")
+        # print(f"Run will be saved to: {self.file_location}")
         self.file = h5py.File(self.file_location, "w")
         self.__h5_position_name__ = "position"
         self.__h5_velocity_name__ = "velocity"
@@ -108,8 +134,8 @@ class MolDyn(object):
         self.__species__ = np.full(self.n_species, fill_value=None, dtype=object)
         # this is really bad, I should just be able to check in __n_active__ using __instances__ but its funky
         # also is the mask that is used to filter currently active particle
-        # 0 when unoccupied, int when occupied
         self.__occupation__ = np.zeros(self.n_particles)
+        self.__global_mask__ = np.tril(np.zeros((self.n_particles, self.n_particles)) == 0, k=0)
         self.idservice = count(1)
 
         # SIMULATION PROPERTIES
@@ -157,7 +183,7 @@ class MolDyn(object):
         self.target_kinetic_energy = (self.n_dim - 1) * 3 / 2 * 1 * self.target_temperature
         # relaxation
         self.state = "gaseous" if (self.target_temperature > 1. and self.init_density < 1.) else "not gaseous"
-        print(f"Conservative state of matter assumption for relaxation: Matter is {self.sim.state}.")
+        #print(f"Conservative state of matter assumption for relaxation: Matter is {self.sim.state}.")
         self.scale = 1.
         self.scale_tracker = np.ones(3)
         self.i_scale = 0
@@ -173,7 +199,7 @@ class MolDyn(object):
         return f"\nMolecular Dynamics Simulation\n" \
                f"\tsaved at {self.file_location}\n" \
                f"\tat time {timedelta(seconds=self.time)} ({self.time / self.time_total:.1f}% completed)\n" \
-               f"\twith species: {[print(f'{spec.name}, ') for spec in self.__species__]}\n" \
+               f"\twith species: [{'NOT IMPLEMENTED'} for spec in self.__species__]\n" \
                f"\twith a total of {self.n_particles} particles\n"
 
     def set_up_simulation(self,
@@ -226,24 +252,26 @@ class MolDyn(object):
         # TODO: check if needed and stable
         self.setup_mic()
         self.normalize_problem()
-        print('Normalization complete.')
+        #print('Normalization complete.')
 
         # rescale the problem until relaxed
         rescale = np.inf
 
-        print(f"Rescaling problem...\n"
-              f"\tAcceptable relative error in kinetic energies: {self.relaxation_threshold:.2e}\n"
-              f"\tTaking {self.relaxation_steps} steps for each relaxation run.")
+        # print(f"Rescaling problem...\n"
+        #       f"\tAcceptable relative error in kinetic energies: {self.relaxation_threshold:.2e}\n"
+        #       f"\tTaking {self.relaxation_steps} steps for each relaxation run.")
         while not np.allclose(rescale, 1., rtol=0., atol=self.relaxation_threshold):
             for __ in np.arange(self.relaxation_steps):
                 self.tick()
 
+            self.set_global_mask()
+
             rescale = self.rescale_velocity()  # resets particle history
-            self.current_step = 0
             self.time = 0.
+            self.lap_sim(scaling_lap=True, scale=rescale)
 
 
-        print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
+        #print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
 
         ### save simulation data to h5 file
         meta_dict = {"n_particles": self.n_particles,
@@ -310,26 +338,28 @@ class MolDyn(object):
                     f"\t\tRemaining simulation time: {timedelta(seconds=self.get_real_time(self.time_total - self.time))} " \
                     f"({self.time / self.time_total:.1f}% completed)\n"
             except AssertionError as e:
-                print(e)
+                #print(e)
                 self.sim_running = False
                 break
             finally:
                 self.save_block()
                 # TODO: if below block is commented out and in reset_lap() the initial values are reset
                 #  we get a measure for the stability of the program
-                for particle in self.instances:
-                    particle.reset_lap()
-                self.current_step = 0
+                self.lap_sim()
+
                 # TODO: set up new iteration using last vales as initial values
 
         plt.close('all')
-        print(f"Done.\n\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
+        #print(f"Done.\n\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
     
     def tick(self):
         """
         Moves the simulation forward by one step
         :return:
         """
+        if self.current_step % 10 == 0:
+            self.set_global_mask()
+
         # TODO: should only iterate over n/2 of the particles and set equal but opposite force
         for particle in self.instances:
             particle.propagate_pos()
@@ -461,7 +491,6 @@ class MolDyn(object):
             particle.normalize_particle()
 
 
-
         # TODO: this should be in a class method, like this redundant class
         for species in self.__species__:
             species.mass = 1.
@@ -470,6 +499,8 @@ class MolDyn(object):
             species.bk = 1.
 
         self.setup_mic()
+        for particle in self.instances:
+            particle.set_resulting_force()
 
     def track_properties(self):
         # TODO: track temperature
@@ -519,19 +550,21 @@ class MolDyn(object):
                                  self.kinetic_energy[start:stop],
                                  p0=p0)
             ekin = para[-1]
-            if ekin < 0:
-                ekin = np.mean(self.kinetic_energy[start:stop])
 
         except (RuntimeError, TypeError):
             ekin = np.mean(self.kinetic_energy[start:stop])
             para = [1./1000, 1./1000, 0, ekin]
+
+        if ekin < 0:
+            ekin = np.mean(self.kinetic_energy[start:stop])
+
+
 
         # if self.sim.state == "gaseous":
         #     scale = np.sqrt(self.target_kinetic_energy / ekin)
         #     self.scale = scale
         # else:
         scale = np.sqrt(self.target_kinetic_energy / ekin)
-        new_scale = self.scale * scale
 
         np.put(self.scale_tracker, ind=self.i_scale, v=scale, mode="wrap")
 
@@ -540,7 +573,7 @@ class MolDyn(object):
                 and (self.i_scale >= 2))
                 and (self.state != "gaseous")):
             self.scale *= np.mean(self.scale_tracker[1:])
-            print(f"\tDetecting oscillation in rescaling, converge to mean. (i = {self.i_scale})")
+            #print(f"\tDetecting oscillation in rescaling, converge to mean. (i = {self.i_scale})")
         else:
             self.scale *= scale
 
@@ -577,7 +610,7 @@ class MolDyn(object):
                 ax.set_title(f'Kinetic Energy')
                 ax.legend()
                 ax.set_yscale("log")
-                plt.savefig(fname=self.dir_location / "relaxation.png", dpi=300, format="png")
+                plt.savefig(fname=(self.dir_location / "rescaling_images") / f"relaxation{self.name[:-3]}.png", dpi=300, format="png")
             else:
                 ax.plot(self.kinetic_energy[1:self.current_step], c="black", alpha=alpha)
                 ax.plot(np.arange(start, stop + overshoot), estimated, c="red", ls="dashed", alpha=alpha)
@@ -585,14 +618,89 @@ class MolDyn(object):
                 ax.axvline(start, ls="dotted", c="magenta", alpha=alpha)
                 ax.axvline(stop, ls="dashed", c="pink", alpha=alpha)
 
-        print(f"\t\tRescaling:\tlambda: {self.scale :.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
-        for particle in self.__instances__:
-            particle.reset_scaling_lap()
-            if self.state == "gaseous":
-                particle.vel *= scale
-            else:
-                particle.vel *= self.scale
+        #print(f"\t\tRescaling:\tlambda: {self.scale :.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
+
+        # for particle in self.__instances__:
+        #     if self.state == "gaseous":
+        #         particle.vel *= scale
+        #         # print(particle.vel[self.current_step])
+        #     else:
+        #         particle.vel *= self.scale
         return scale
+
+    def lap_sim(self, scaling_lap=False, scale=np.nan):
+        if scaling_lap:
+            for particle in self.instances:
+                # print(particle.vel[self.current_step])
+                particle.reset_scaling_lap()
+                if self.state == "gaseous":
+                    particle.vel *= scale
+                    # print(particle.vel[self.current_step])
+                else:
+                    particle.vel *= self.scale
+        else:
+            for particle in self.instances:
+                particle.reset_lap()
+
+
+        self.scale_velocity = np.ones(self.n_steps)
+        self.temperature = np.zeros(self.n_steps)
+        self.kinetic_energy = np.zeros(self.n_steps)
+        self.virial = np.zeros(self.n_steps)
+        self.potential_energy = np.zeros(self.n_steps)
+        self.pressure = np.zeros(self.n_steps)
+        self.density = np.zeros(self.n_steps)
+        self.surface_tension = np.zeros(self.n_steps)
+
+        self.current_step = 0
+        for particle in self.instances:
+            particle.set_resulting_force()
+
+    def set_global_mask(self):
+        self.__global_mask__ = (self.lj_cut_off + 1.) * np.ones((self.n_particles, self.n_particles))
+        for i, part1 in enumerate(self.instances):
+            for j, part2 in enumerate(self.instances):
+                self.__global_mask__[i, j], __ = part1.get_distance_absoluteA1(part2)
+
+        self.__global_mask__ = np.triu(self.__global_mask__)
+        self.__global_mask__[np.logical_and(self.__global_mask__ > self.lj_cut_off, self.__global_mask__ != 0)] = 0
+        self.__global_mask__ = self.__global_mask__ == 0
+        # number of interactions saved
+        # print(np.sum(self.__global_mask__) - np.sum(np.triu(np.ones_like(self.__global_mask__))))
+
+    # TODO: NUMBA THIS
+    # TODO: Do this: https://stackoverflow.com/questions/41769100/how-do-i-use-numba-on-a-member-function-of-a-class
+    @staticmethod
+    def force_lennard_jones(r):
+        return - 24 * (np.power(r, 6) - 2) / (np.power(r, 13)) - lj_force_offset
+
+    @staticmethod
+    def potential_lennard_jones(r):
+        return 4 * (np.power(r, -12) - np.power(r, -6)) - lj_pot_offset
+
+    @staticmethod
+    def get_distance_absoluteA1(pos1, pos2, box2_r, box):
+        dpos = pos1 - pos2
+        k = int(dpos * box2_r)  # this casts the result to int, finding in where the closest box is
+        dpos = dpos - k * box  # casting back to float must be explicit
+
+        # using the properties of the Einstein summation convention implementation in numpy, which is very fast
+        # if numba doesnt have this then we can use something else as well
+        return np.sqrt(np.einsum('ij,ij->j', dpos, dpos)), dpos
+
+    @staticmethod
+    def get_force_potential(pos1, pos2, box2_r, box):
+        dpos = pos1 - pos2
+        k = (dpos * box2_r).astype(int)  # this casts the result to int, finding in where the closest box is
+        dpos = dpos - k * box  # casting back to float must be explicit
+        dist = np.sqrt(np.einsum('ij,ij->j', dpos, dpos))
+
+        force = - 24 * (np.power(dist, 6) - 2) / (np.power(dist, 13)) - lj_force_offset
+        potential =  4 * (np.power(dist, -12) - np.power(dist, -6)) - lj_pot_offset
+
+        return force * dpos / dist, potential, force * dist
+
+
 
 
 
