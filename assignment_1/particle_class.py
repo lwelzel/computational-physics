@@ -135,16 +135,11 @@ class Particle(object):
                                                                            other.pos[self.sim.current_step + future_step],
                                                                            self.sim.box2_r, self.sim.box)
 
-
-
-            self.sim.potential_energy[self.sim.current_step + future_step] += potential * (future_step == 0)
-            self.sim.pressure[self.sim.current_step] += pressure_term * (future_step == 0)
+            self.sim.potential_energy[self.sim.current_step + future_step] += potential
+            self.sim.pressure[self.sim.current_step] += pressure_term
             self.force[self.sim.current_step + future_step] = self.force[self.sim.current_step + future_step] + force
             other.force[self.sim.current_step + future_step] = other.force[self.sim.current_step + future_step] - force
 
-
-        # self.sim.potential_energy[self.sim.current_step + future_step] = self.sim.potential_energy[self.sim.current_step + future_step]
-        # self.sim.pressure[self.sim.current_step] = self.sim.pressure[self.sim.current_step]
 
 
     def get_force_potential(self, other, future_step=0):
@@ -216,11 +211,11 @@ class Particle(object):
 
         # self.vel *= 1 / np.sqrt(self.__class__.internal_energy /
         #                         (self.__class__.particle_mass))
-        self.acc *= 1 / self.__class__.sigma * \
-                    1 / (self.__class__.internal_energy /
-                         (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
-
-        self.force *= self.__class__.sigma / self.__class__.internal_energy
+        # self.acc *= 1 / self.__class__.sigma * \
+        #             1 / (self.__class__.internal_energy /
+        #                  (self.__class__.particle_mass * np.power(self.__class__.sigma, 2)))
+        #
+        # self.force *= self.__class__.sigma / self.__class__.internal_energy
 
         # self.set_resulting_force()
 

@@ -5,7 +5,7 @@ from argon_class import Argon
 import static_plotting
 
 
-def set_up_simulation(n_particles=2 ** 3 * 4, n_dim=3, n_steps=250,
+def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=510,
                       time_total=0.49e0, initial_timestep=2.e-3,
                       max_steps=1e6, max_real_time=3 * 60,
                       density=1.2, temperature=0.5, id=0):
@@ -69,7 +69,7 @@ def run_md_simulation():
     MolDyn.sim.run()
 
 
-def main(n_particles=2 ** 3 * 4, n_dim=3, n_steps=250,
+def main(n_particles=3 ** 3 * 4, n_dim=3, n_steps=250,
          time_total=0.49e0, initial_timestep=2.e-3,
          max_steps=1e6, max_real_time=3 * 60,
          density=1.2, temperature=0.5, id=0):
@@ -114,7 +114,4 @@ def show_3d_init_pos(initial_positions):
 if __name__ == "__main__":
     intro()
     main()
-    # for development only
-    # import static_plotting
-    #
-    # static_plotting.main()
+    static_plotting.main()

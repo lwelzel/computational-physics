@@ -274,7 +274,6 @@ class MolDyn(object):
             if i_r > 20:
                 break
 
-
         #print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
 
         ### save simulation data to h5 file
@@ -342,7 +341,7 @@ class MolDyn(object):
                     f"\t\tRemaining simulation time: {timedelta(seconds=self.get_real_time(self.time_total - self.time))} " \
                     f"({self.time / self.time_total:.1f}% completed)\n"
             except AssertionError as e:
-                #print(e)
+                print(e)
                 self.sim_running = False
                 break
             finally:
@@ -464,9 +463,9 @@ class MolDyn(object):
         """
         
         
-        self.av_particle_mass = np.mean([particle.particle_mass for particle in self.instances])
-        self.av_particle_sigma = np.mean([particle.sigma for particle in self.instances])
-        self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
+        # self.av_particle_mass = np.mean([particle.particle_mass for particle in self.instances])
+        # self.av_particle_sigma = np.mean([particle.sigma for particle in self.instances])
+        # self.av_particle_epsilon = np.mean([particle.internal_energy for particle in self.instances])
 
         # bk = Constants.bk
         # TODO: remove when passing normalized box length
@@ -478,18 +477,18 @@ class MolDyn(object):
         # self.time_total *= np.sqrt(self.av_particle_epsilon /
         #                            (self.av_particle_mass * np.power(self.av_particle_sigma, 2)))
 
-        self.temperature *= Constants.bk / self.av_particle_epsilon
-        self.potential_energy *= 1 / self.av_particle_epsilon
-        self.kinetic_energy *= 1 / self.av_particle_epsilon
-        self.pressure *= np.power(self.av_particle_sigma, 3) / self.av_particle_epsilon
-        self.density *= np.power(self.av_particle_sigma, self.n_dim)
-        self.surface_tension *= np.power(self.av_particle_sigma, 2) / self.av_particle_epsilon
+        # self.temperature *= Constants.bk / self.av_particle_epsilon
+        # self.potential_energy *= 1 / self.av_particle_epsilon
+        # self.kinetic_energy *= 1 / self.av_particle_epsilon
+        # self.pressure *= np.power(self.av_particle_sigma, 3) / self.av_particle_epsilon
+        # self.density *= np.power(self.av_particle_sigma, self.n_dim)
+        # self.surface_tension *= np.power(self.av_particle_sigma, 2) / self.av_particle_epsilon
 
         # iterate over particles and normalize values
         # for type (what a shitty name) in species:
 
-        for spec in self.__species__:
-            spec.normalize_class()
+        # for spec in self.__species__:
+        #     spec.normalize_class()
 
 
         for particle in self.instances:
@@ -520,7 +519,7 @@ class MolDyn(object):
         # print(f"\t\t\t\tmean ekin: {np.mean(l):.2e} \t median ekin: {np.median(l):.2e}\n"
         #       f"\t\t\t\tmin ekin: {np.min(l):.2e} \t max ekin: {np.max(l):.2e}")
         # print()
-        return 0.5 * np.sum([particle.mass * np.square(np.linalg.norm(particle.vel[self.current_step]))
+        return 0.5 * np.sum([particle.mass * np.sum(np.square((particle.vel[self.current_step])))
                              for particle in self.__instances__])
 
     @staticmethod
@@ -701,7 +700,7 @@ class MolDyn(object):
         dist = np.sqrt(np.einsum('ij,ij->j', dpos, dpos))
 
         force = - 24 * (np.power(dist, 6) - 2) / (np.power(dist, 13)) - lj_force_offset
-        potential =  4 * (np.power(dist, -12) - np.power(dist, -6)) - lj_pot_offset
+        potential = 4 * (np.power(dist, -12) - np.power(dist, -6)) - lj_pot_offset
 
         return force * dpos / dist, potential, force * dist
 

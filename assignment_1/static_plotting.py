@@ -233,11 +233,57 @@ def mpl_strict_2d_static(pos, header):
     plt.show()
     return
 
+
+def get_pressure(path="simulation_data", string="den=1e+00_temp=5e-01"):
+    files = Path(path).rglob(f"*{string}*.h5")
+    files = np.array([path for path in files]).flatten()
+    n_part = 108
+    dpoints = np.sum(np.triu(np.ones((n_part, n_part)), k=1))
+    corr_array = np.zeros((len(files), int(dpoints)))
+
+    header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
+
+    box_length = header["box_length"]
+    n_dim = header["n_dim"]
+    n_particles = header["n_particles"]
+    T = header["temperature"]
+    rho = header["density"]
+    volume = box_length ** n_dim
+    box = SimBox(box_length, n_dim)
+
+    n_cores = int(mp.cpu_count() * 0.8)
+    pool = mp.Pool(n_cores)
+
+    for i, file in enumerate(files):
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+        print(pressure)
+        pressure_terms = 0.5 ** 2 * pressure
+        avg_pressure = T * rho - 1 / (3 * n_particles * T) * np.mean(pressure_terms)
+        pressures = T * rho - rho / (3 * n_particles * T) * (pressure_terms)
+        break
+
+
+
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(7, 5))
+
+
+
+    ax.plot(pressures, c="black")
+    ax.set_xlabel(r'$step$ [-]')
+    ax.set_ylabel(r'$P$ [-]')
+    ax.set_ylim(0, 2)
+    ax.set_title('Pressure vs. Time (Average Pressure = {:.3f})'.format(avg_pressure))
+    plt.show()
+    return
+
 def get_corr(path="simulation_data", string="den=1e+00_temp=5e-01"):
     files = Path(path).rglob(f"*{string}*.h5")
     files = np.array([path for path in files]).flatten()
     n_part = 108
-    corr_array = np.zeros((10, n_part, n_part))
+    dpoints = np.sum(np.triu(np.ones((n_part, n_part)), k=1))
+    corr_array = np.zeros((len(files), int(dpoints)))
 
     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
 
@@ -257,38 +303,15 @@ def get_corr(path="simulation_data", string="den=1e+00_temp=5e-01"):
         comb_idx = np.transpose(np.triu_indices(len(pos), 1))
         pos_pairs = pos[comb_idx]
         pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
-        corr_array[i] = pool.map(box.get_distance_absoluteA1, pos_pairs)
+        corr_array[i] = np.squeeze(np.array(pool.map(box.get_distance_absoluteA1, pos_pairs)))
 
+    corr_array = np.mean(corr_array, axis=0).flatten()
 
-def mpl_plot_pair_corr(header, pos):
-    box_length = header["box_length"]
-    n_dim = header["n_dim"]
-    n_particles = header["n_particles"]
-    volume = box_length ** n_dim
-    box = SimBox(box_length, n_dim)
-    # (particles, steps, n_dims)
-    pos = np.squeeze(pos[:, -1::])
-    print(pos.shape)
-    # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
-    comb_idx = np.transpose(np.triu_indices(len(pos), 1))
-    print(comb_idx.shape)
-    pos_pairs = pos[comb_idx]
-    print(pos_pairs.shape)
-    pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
+    bin_width = 0.01
+    bins = np.arange(0.5, header["box_length"], bin_width)
 
-    print(pos_pairs.shape)
-
-    n_cores = int(mp.cpu_count() * 0.8)
-    pool = mp.Pool(n_cores)
-    dist = pool.map(box.get_distance_absoluteA1, pos_pairs)
-    print(dist.shape)
-    pool.close()
-    pool.join()
-    dist = np.array(dist)
-
-    bins = np.arange(0.5, header["box_length"], 0.01)
-
-    hist, bin_edges = histogram(dist, bins=bins)
+    hist, bin_edges = histogram(corr_array, bins=bins)
+    x = bin_edges[:-1] + (bin_edges[1:] - bin_edges[:-1]) / 2
 
     hist = 2 * volume / (n_particles * (n_particles - 1)) \
            * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
@@ -299,26 +322,80 @@ def mpl_plot_pair_corr(header, pos):
                            figsize=(7, 5))
 
     # solid expected positions:
-    for i in np.arange(25):
+    for i in np.arange(10):
         ax.axvline(np.sqrt(i), alpha=0.5, c="gray", linewidth=0.75)
 
-    ax.bar(bin_edges[:-1], hist)
+    ax.bar(x, hist, width=bin_width, align="center",
+           edgecolor="k", facecolor="none", alpha=1)
+
     ax.set_xlabel(r'$r / \sigma$')
     ax.set_ylabel(r'$g(r)$')
+    ax.set_xlim(0.5, np.ceil(header["box_length"] / 2))
+    ax.set_title(f'Radial Distribution Function')
+    plt.show()
+    return
+
+
+def mpl_plot_pair_corr(header, pos):
+    box_length = header["box_length"]
+    n_dim = header["n_dim"]
+    n_particles = header["n_particles"]
+    volume = box_length ** n_dim
+    box = SimBox(box_length, n_dim)
+    # (particles, steps, n_dims)
+    pos = np.squeeze(pos[:, -1::])
+    # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
+    comb_idx = np.transpose(np.triu_indices(len(pos), 1))
+    pos_pairs = pos[comb_idx]
+    pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
+
+    n_cores = int(mp.cpu_count() * 0.8)
+    pool = mp.Pool(n_cores)
+    dist = pool.map(box.get_distance_absoluteA1, pos_pairs)
+    pool.close()
+    pool.join()
+    dist = np.array(dist)
+
+    corr_array = dist.flatten()
+
+    bin_width = 0.01
+    bins = np.arange(0.5, header["box_length"], bin_width)
+
+    hist, bin_edges = histogram(corr_array, bins=bins)
+    x = bin_edges[:-1] + (bin_edges[1:] - bin_edges[:-1]) / 2
+
+    hist = 2 * volume / (n_particles * (n_particles - 1)) \
+           * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
+           * hist
+
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(7, 5))
+
+    # solid expected positions:
+    for i in np.arange(10):
+        ax.axvline(np.sqrt(i), alpha=0.5, c="gray", linewidth=0.75)
+
+    ax.bar(x, hist, width=bin_width, align="center",
+           edgecolor="k", facecolor="none", alpha=1)
+
+    ax.set_xlabel(r'$r / \sigma$')
+    ax.set_ylabel(r'$g(r)$')
+    ax.set_xlim(0.5, np.ceil(header["box_length"] / 2))
     ax.set_title(f'Radial Distribution Function')
     plt.show()
     return
 
 
 def mpl_plot_pressure(pressure_terms, header):
-    pressure_terms = 0.5 ** 2 * pressure_terms[1:]
+    pressure_terms = - 0.5 * pressure_terms
     fig, ax = plt.subplots(nrows=1, ncols=1, constrained_layout=True, figsize=(7, 5))
     T = header["temperature"]
     rho = header["density"]
     n_particles = header["n_particles"]
 
-    avg_pressure = T * rho - 1 / (3 * n_particles * T) * np.mean(pressure_terms)
-    pressures = T * rho - rho / (3 * n_particles * T) * (pressure_terms)
+    avg_pressure = (1 - 1 / (3 * n_particles * T) * np.mean(pressure_terms))
+    pressures = (1 - 1 / (3 * n_particles * T) * (pressure_terms))
 
     ax.plot(pressures, c="black")
     ax.set_xlabel(r'$step$ [-]')
@@ -345,11 +422,11 @@ def mpl_plot_energy(header, kinetic_energy):
 
 
 def mpl_plot_energy_cons(header, kinetic_energy, potential_energy):
-    tot_energy = kinetic_energy[np.nonzero(kinetic_energy)] + potential_energy[np.nonzero(potential_energy)]
+    tot_energy = kinetic_energy[np.nonzero(kinetic_energy)] + potential_energy[np.nonzero(kinetic_energy)]
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(7, 5))
-    ax.plot(potential_energy[np.nonzero(potential_energy)], label='Potential')
+    ax.plot(potential_energy[np.nonzero(kinetic_energy)], label='Potential')
     ax.plot(kinetic_energy[np.nonzero(kinetic_energy)], label='Kinetic')
     ax.plot(tot_energy, label='Total')
     ax.axhline(header["target_kinetic_energy"], label="Target Kinetic", c="gray", ls="dashed")
@@ -409,8 +486,9 @@ def plot_lj():
 
 def main():
     files = Path("simulation_data").rglob("*.h5")
-    files = np.array([path for path in files]).flatten()[-20:-6]
-    for file in np.flip(files):
+    files = np.array([path for path in files]).flatten()
+    # for file in np.flip(files):
+    for file in files:
         print(file)
         header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
         plotly_3d_static(pos, vel, header)
@@ -420,6 +498,8 @@ def main():
         break
 
     # plot_lj()
+
+    # get_pressure()
 
 
 if __name__ == "__main__":
