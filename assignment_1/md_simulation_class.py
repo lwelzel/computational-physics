@@ -89,7 +89,7 @@ class MolDyn(object):
 
         # SAVE PARAMETERS
         self.dir_location = Path(file_location)
-        self.name = f"id={id}_run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}.h5"
+        self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_id={id}.h5"
         Path(self.dir_location).mkdir(parents=True, exist_ok=True)
         self.file_location = Path(file_location) / self.name
         # print(f"Run will be saved to: {self.file_location}")
