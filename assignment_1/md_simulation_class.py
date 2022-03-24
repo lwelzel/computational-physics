@@ -89,7 +89,7 @@ class MolDyn(object):
 
         # SAVE PARAMETERS
         self.dir_location = Path(file_location)
-        self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_id={id}.h5"
+        self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_part={n_particles}_id={id}.h5"
         Path(self.dir_location).mkdir(parents=True, exist_ok=True)
         self.file_location = Path(file_location) / self.name
         # print(f"Run will be saved to: {self.file_location}")
@@ -353,6 +353,7 @@ class MolDyn(object):
 
                 # TODO: set up new iteration using last vales as initial values
 
+        self.file.close()
         plt.close('all')
         #print(f"Done.\n\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
     

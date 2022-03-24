@@ -233,6 +233,32 @@ def mpl_strict_2d_static(pos, header):
     plt.show()
     return
 
+def get_corr(path="simulation_data", string="den=1e+00_temp=5e-01"):
+    files = Path(path).rglob(f"*{string}*.h5")
+    files = np.array([path for path in files]).flatten()
+    n_part = 108
+    corr_array = np.zeros((10, n_part, n_part))
+
+    header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
+
+    box_length = header["box_length"]
+    n_dim = header["n_dim"]
+    n_particles = header["n_particles"]
+    volume = box_length ** n_dim
+    box = SimBox(box_length, n_dim)
+
+    n_cores = int(mp.cpu_count() * 0.8)
+    pool = mp.Pool(n_cores)
+
+    for i, file in enumerate(files):
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+        pos = np.squeeze(pos[:108, -1])
+        # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
+        comb_idx = np.transpose(np.triu_indices(len(pos), 1))
+        pos_pairs = pos[comb_idx]
+        pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
+        corr_array[i] = pool.map(box.get_distance_absoluteA1, pos_pairs)
+
 
 def mpl_plot_pair_corr(header, pos):
     box_length = header["box_length"]
@@ -242,14 +268,20 @@ def mpl_plot_pair_corr(header, pos):
     box = SimBox(box_length, n_dim)
     # (particles, steps, n_dims)
     pos = np.squeeze(pos[:, -1::])
+    print(pos.shape)
     # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
     comb_idx = np.transpose(np.triu_indices(len(pos), 1))
+    print(comb_idx.shape)
     pos_pairs = pos[comb_idx]
+    print(pos_pairs.shape)
     pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
+
+    print(pos_pairs.shape)
 
     n_cores = int(mp.cpu_count() * 0.8)
     pool = mp.Pool(n_cores)
     dist = pool.map(box.get_distance_absoluteA1, pos_pairs)
+    print(dist.shape)
     pool.close()
     pool.join()
     dist = np.array(dist)
@@ -377,15 +409,15 @@ def plot_lj():
 
 def main():
     files = Path("simulation_data").rglob("*.h5")
-    files = np.array([path for path in files]).flatten()[-9:-6]
+    files = np.array([path for path in files]).flatten()[-20:-6]
     for file in np.flip(files):
         print(file)
         header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
         plotly_3d_static(pos, vel, header)
-        # mpl_plot_pair_corr(header, pos)
+        mpl_plot_pair_corr(header, pos)
         mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
         mpl_plot_pressure(pressure, header)
-        # break
+        break
 
     # plot_lj()
 
