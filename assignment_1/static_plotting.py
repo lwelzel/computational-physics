@@ -278,12 +278,10 @@ def get_pressure(path="simulation_data", string="den=1e+00_temp=5e-01"):
     plt.show()
     return
 
-def get_corr(path="simulation_data", string="den=3e-01_temp=3e+00"):
+def get_corr(path="simulation_data\long_sims", string="den=1e+00_temp=5e-01"):
     files = Path(path).rglob(f"*{string}*.h5")
-    files = np.array([path for path in files]).flatten()[:5]
+    files = np.array([path for path in files]).flatten()
     n_part = 108
-    dpoints = np.sum(np.triu(np.ones((n_part, n_part)), k=1))
-    corr_array = np.zeros((len(files), int(dpoints)))
 
     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
 
@@ -293,48 +291,55 @@ def get_corr(path="simulation_data", string="den=3e-01_temp=3e+00"):
     volume = box_length ** n_dim
     box = SimBox(box_length, n_dim)
 
+    bin_width = 0.01
+    bins = np.arange(0.5, header["box_length"], bin_width)
+
+    corr_array = np.zeros((len(files), int(len(bins)-1)))
+
     n_cores = int(mp.cpu_count() * 0.8)
     pool = mp.Pool(n_cores)
 
     for i, file in enumerate(files):
         header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
-        if header["relaxed"] == False:
-            print("Hi")
-            continue
         pos = np.squeeze(pos[:108, -1])
         # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
         comb_idx = np.transpose(np.triu_indices(len(pos), 1))
         pos_pairs = pos[comb_idx]
         pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
-        corr_array[i] = np.squeeze(np.array(pool.map(box.get_distance_absoluteA1, pos_pairs)))
+
+        dist = np.squeeze(np.array(pool.map(box.get_distance_absoluteA1, pos_pairs)))
+
+        hist, bin_edges = histogram(dist, bins=bins)
+
+        corr_array[i] = hist
 
     corr_array = np.mean(corr_array, axis=0).flatten()
 
-    bin_width = 0.01
-    bins = np.arange(0.5, header["box_length"], bin_width)
-
-    hist, bin_edges = histogram(corr_array, bins=bins)
     x = bin_edges[:-1] + (bin_edges[1:] - bin_edges[:-1]) / 2
 
     hist = 2 * volume / (n_particles * (n_particles - 1)) \
            * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
-           * hist
+           * corr_array
 
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(7, 5))
 
-    # solid expected positions:
-    for i in np.arange(10):
-        ax.axvline(np.sqrt(i), alpha=0.5, c="gray", linewidth=0.75)
+    # # solid expected positions:
+    for i in np.arange(8):
+        ax.axvline(np.sqrt(i * 1 / (1-0.1)), alpha=0.5, c="gray", linewidth=0.75)
+    # ax.axhline(1., c="red", ls="dashed")
 
     ax.bar(x, hist, width=bin_width, align="center",
            edgecolor="k", facecolor="none", alpha=1)
 
-    ax.set_xlabel(r'$r / \sigma$')
-    ax.set_ylabel(r'$g(r)$')
+    ax.set_xlabel(r'$r / \sigma$ [-]')
+    ax.set_ylabel(r'$g(r)$ [-]')
     ax.set_xlim(0.5, np.ceil(header["box_length"] / 2))
-    ax.set_title(f'Radial Distribution Function')
+    fig.suptitle(f'Radial Distribution Function')
+    ax.set_title(f'Density: {header["density"]} | Temperature: {header["temperature"]}\n'
+                 f'Runs: {len(files)} | Total Time: {len(files) * header["time_total"]} | Particles: {header["n_particles"]}',
+                 fontsize=10)
     plt.show()
     return
 

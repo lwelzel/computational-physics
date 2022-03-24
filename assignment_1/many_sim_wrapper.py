@@ -31,6 +31,10 @@ def gen_many_runs():
     max_real_time = 3 * 60 * np.ones(n_runs)
     density = np.repeat([1.2, 0.8, 0.3], n_runs_per_it)
     temperature = np.repeat([0.5, 1., 3.], n_runs_per_it)
+
+
+    
+
     id = np.arange(0, n_runs)
 
     i = 0
