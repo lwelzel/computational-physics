@@ -278,9 +278,9 @@ def get_pressure(path="simulation_data", string="den=1e+00_temp=5e-01"):
     plt.show()
     return
 
-def get_corr(path="simulation_data", string="den=1e+00_temp=5e-01"):
+def get_corr(path="simulation_data", string="den=3e-01_temp=3e+00"):
     files = Path(path).rglob(f"*{string}*.h5")
-    files = np.array([path for path in files]).flatten()
+    files = np.array([path for path in files]).flatten()[:5]
     n_part = 108
     dpoints = np.sum(np.triu(np.ones((n_part, n_part)), k=1))
     corr_array = np.zeros((len(files), int(dpoints)))
@@ -298,6 +298,9 @@ def get_corr(path="simulation_data", string="den=1e+00_temp=5e-01"):
 
     for i, file in enumerate(files):
         header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+        if header["relaxed"] == False:
+            print("Hi")
+            continue
         pos = np.squeeze(pos[:108, -1])
         # reference: https://stackoverflow.com/questions/16003217/n-d-version-of-itertools-combinations-in-numpy
         comb_idx = np.transpose(np.triu_indices(len(pos), 1))
@@ -495,21 +498,21 @@ def plot_lj():
 
 
 def main():
-    files = Path("simulation_data").rglob("*.h5")
-    files = np.array([path for path in files]).flatten()
-    # for file in np.flip(files):
-    for file in files:
-        print(file)
-        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
-        plotly_3d_static(pos, vel, header)
-        mpl_plot_pair_corr(header, pos)
-        mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
-        mpl_plot_pressure(pressure, header)
-        break
+    # files = Path("simulation_data").rglob("*.h5")
+    # files = np.array([path for path in files]).flatten()
+    # # for file in np.flip(files):
+    # for file in files:
+    #     print(file)
+    #     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+    #     plotly_3d_static(pos, vel, header)
+    #     mpl_plot_pair_corr(header, pos)
+    #     mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+    #     mpl_plot_pressure(pressure, header)
+    #     break
 
     # plot_lj()
     # get_pressure()
-    # get_corr()
+    get_corr()
 
 
 if __name__ == "__main__":
