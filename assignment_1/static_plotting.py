@@ -377,7 +377,7 @@ def plot_lj():
 
 def main():
     files = Path("simulation_data").rglob("*.h5")
-    files = np.array([path for path in files]).flatten()
+    files = np.array([path for path in files]).flatten()[-9:-6]
     for file in np.flip(files):
         print(file)
         header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
@@ -385,7 +385,7 @@ def main():
         # mpl_plot_pair_corr(header, pos)
         mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
         mpl_plot_pressure(pressure, header)
-        break
+        # break
 
     # plot_lj()
 

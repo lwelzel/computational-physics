@@ -260,6 +260,7 @@ class MolDyn(object):
         # print(f"Rescaling problem...\n"
         #       f"\tAcceptable relative error in kinetic energies: {self.relaxation_threshold:.2e}\n"
         #       f"\tTaking {self.relaxation_steps} steps for each relaxation run.")
+        i_r = 0
         while not np.allclose(rescale, 1., rtol=0., atol=self.relaxation_threshold):
             for __ in np.arange(self.relaxation_steps):
                 self.tick()
@@ -269,6 +270,9 @@ class MolDyn(object):
             rescale = self.rescale_velocity()  # resets particle history
             self.time = 0.
             self.lap_sim(scaling_lap=True, scale=rescale)
+            i_r += 1
+            if i_r > 20:
+                break
 
 
         #print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")

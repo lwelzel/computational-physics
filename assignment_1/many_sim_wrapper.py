@@ -16,11 +16,14 @@ def gen_many_runs():
     rng = np.random.default_rng()
     n_cpus = int(mp.cpu_count() * 0.9)
     pool = mp.Pool(n_cpus)
+    print(f"CPUs active: {n_cpus}")
 
-    n_runs_per_it = 5
+    n_runs_per_it = int(n_cpus / 3.1)
     n_runs = n_runs_per_it * 3  # must be multiple of 3
 
-    n_particles = 2 ** 3 * 4 * np.ones(n_runs).astype(int)
+    print(f"Parallel runs: {n_runs}")
+
+    n_particles = 3 ** 3 * 4 * np.ones(n_runs).astype(int)
     n_dim = 3 * np.ones(n_runs).astype(int)
     n_steps = 510 * np.ones(n_runs).astype(int)
     time_total = 1.e0 * np.ones(n_runs)
