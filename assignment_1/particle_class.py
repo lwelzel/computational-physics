@@ -8,7 +8,7 @@ from sys import version_info
 
 class Particle(object):
     """
-    Particle Class to handle instance tracking and self-knowledge of the Particle class
+    Meta Particle Class to handle instance tracking and self-knowledge of the Particle class
     """
 
     # PARTICLE PROPERTIES
@@ -27,12 +27,11 @@ class Particle(object):
                  **kwargs):
         """
 
-        :param n_steps:
-        :param n_dim:
-        :param initial_pos: shape = (3, 1)
-        :param initial_vel: shape = (3, 1)
-        :param initial_acc: shape = (3, 1)
-        :param kwargs:
+        :param sim: MolDyn simulation instance
+        :param initial_pos: initial positions, array
+        :param initial_vel: initial velocities, array
+        :param initial_acc: initial accelerations, array
+        :param kwargs: other kwargs that might be added in the future
         """
         # setup
         super(Particle, self).__init__()
@@ -99,6 +98,11 @@ class Particle(object):
         return f"\nParticle Class __repr__ not implemented.\n"
 
     def wrap_d_vector(self):
+        """
+        This function takes the difference vector of a particle pair, dpos and converts it to a
+        coordinate difference vector taking into account periodic boundary conditions.
+        :return: na
+        """
         self.k[:] = self.dpos[:] \
                     * self.sim.box2_r  # this casts the result to int, finding in where the closest box is
         self.dpos[:] = self.dpos[:] - self.k * self.sim.box  # casting back to float must be explicit
@@ -114,11 +118,28 @@ class Particle(object):
         self.wrap_d_vector()
 
     def get_distance_absoluteA1(self, other, future_step=0):
+        """
+        :param other: The other particle.
+        :param future_step:The future time step to predict the absolute distance between the two particles.
+        :return: absolute distance between this particle and another particle as well as its vector
+        """
         self.get_distance_vectorA1(other, future_step)
         # using the properties of the Einstein summation convention implementation in numpy, which is very fast
         return np.sqrt(np.einsum('ij,ij->j', self.dpos, self.dpos)), self.dpos
 
     def set_resulting_force(self, future_step=0):
+        """
+        This function, as part of the Particle class, sets the resulting force
+        of each particle in the simulation and itself, after getting the force and potential by calling the
+        get_force_potential function from the Simulation class.
+        It also contributes to some statistical simulation parameters.
+        The generator for the iteration takes into account only particles withing the current SOI
+        :param future_step:
+        :return:
+        Notes
+        -----
+        The return value is None, but the resulting force of the particle is set.
+        """
         for other in np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__-1]).compressed():
             force, potential, pressure_term = self.sim.get_force_potential(self.pos[self.sim.current_step + future_step],
                                                                            other.pos[self.sim.current_step + future_step],
@@ -132,16 +153,45 @@ class Particle(object):
 
 
     def get_force_potential(self, other, future_step=0):
+        """
+        :param other: The other particle
+        :param future_step: The time step in the future to check for
+        :return: tuple consisting of the force vector, potential, and force magnitude.
+        """
         dist, vector = self.get_distance_absoluteA1(other, future_step)
         return self.force_lennard_jones(dist) * vector / dist, self.potential_lennard_jones(dist), self.force_lennard_jones(dist) * dist
 
     def force_lennard_jones(self, r):
+        """
+        Define the force on each particle due to the Lennard-Jones potential.
+
+
+        :param r: The separation of the particle pair, array-like
+        :return f: The force on each particle, array-like
+        """
         return - 24*(np.power(r,6)-2)/(np.power(r,13))
 
     def potential_lennard_jones(self, r):
+        """
+        This function returns the potential energy of two particles with
+        the Lennard-Jones force law. The particles will experience a repulsive
+        force for small distances and an attractive force for large distances.
+        :param r: The distance between the two particles.
+        :return: The potential energy of the two particles.
+        """
         return 4 * (np.power(r, -12) - np.power(r,-6))
 
     def propagate_explicit_euler(self):
+        """
+        Propagates the velocity and position of the particle using an
+        explicit Euler method.
+
+        1. The particle's future position is set to its current position plus
+           its velocity multiplied by the current time step.
+        2. The particle's future velocity is set to its current velocity plus
+           half the time step multiplied by the resulting force.
+        :return:
+        """
         self.dpos[:] = self.pos[self.sim.current_step] \
                        + self.vel[self.sim.current_step] * self.sim.current_timestep
         self.wrap_d_vector()
@@ -153,6 +203,14 @@ class Particle(object):
         return
 
     def propagate_Verlet_pos(self):
+        """
+        This function increments the particle's position for the next time step.
+        The particle position for the next step is calculated using the Verlet
+        integration method.
+
+        The Verlet integration method is a modification of the Euler method, which is (semi) symplectic.
+        :return:
+        """
         self.dpos[:] = self.pos[self.sim.current_step] \
                        + self.vel[self.sim.current_step] * self.sim.current_timestep \
                        + self.force[self.sim.current_step] * np.square(self.sim.current_timestep) \
@@ -162,6 +220,12 @@ class Particle(object):
         self.pos[self.sim.current_step + 1] = self.dpos
 
     def propagate_Verlet_vel(self):
+        """
+        Calculate the velocity at the next time step for a particle using the Verlet velocity algorithm.
+        The Verlet velocity algorithm is simply the velocity at the next time step calculated using the average of the
+        particle's current velocity and the velocity halfway through the time step.
+        :return:
+        """
         self.set_resulting_force(future_step=1)
 
         self.vel[self.sim.current_step + 1] = self.vel[self.sim.current_step] \
@@ -172,11 +236,28 @@ class Particle(object):
         return
 
     def normalize_particle(self):
+        """
+        The name is mainly legacy before the inputs were changed to be normalized.
+        Now the function sets the mask of the particle pairs (its own row from the pair matrix)
+
+        This is done by creating a mask for each particle that is based on
+        the global mask and the particle's instance number.
+
+        The particle's mask is then used to compress the particle's array,
+        which removes any invalid values.
+        :return:
+        """
         self.mask = np.ma.array(self.sim.instances, mask=self.sim.__global_mask__[self.__id__ - 1]).compressed()
 
 
 
     def reset_lap(self):
+        """
+        Resets the position, velocity, force, and acceleration
+        of all particles to their respective values at the
+        start of the current set.
+        :return:
+        """
         self.pos[0] = self.pos[self.sim.current_step]
         self.vel[0] = self.vel[self.sim.current_step]
         self.force[0] = self.force[self.sim.current_step]
@@ -189,6 +270,13 @@ class Particle(object):
         self.acc[1:] = zeros
 
     def reset_scaling_lap(self):
+        """
+        Resets the position, velocity, force, and acceleration
+        of all particles to their respective values at the
+        start of the current step.
+        Some funkyness for gasses to speed up relaxation.
+        :return:
+        """
         if self.sim.state == "gaseous":
             self.pos[0] = self.pos[self.sim.current_step, :]  # self.pos[self.sim.current_step, :]  # self.initial_pos
             self.vel[0] = self.vel[self.sim.current_step, :]  # self.vel[self.sim.current_step, :]  # self.initial_vel
@@ -205,11 +293,19 @@ class Particle(object):
 
     @classmethod
     def normalize_class(cls):
+        """
+        Does what it says
+        :return:
+        """
         cls.mass = 1.
         cls.internal_energy = 1.
         cls.sigma = 1.
 
     @property
     def position(self):
+        """
+        Does what it says
+        :return:
+        """
         return (self.pos[self.sim.current_step])
 

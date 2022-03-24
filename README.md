@@ -4,7 +4,7 @@ Assignments from the Computational Physics Course of Leiden University by Matthi
 
 ## Author and acknowledgment
 The course is provided by Matthew Matthieu Schaller. The exercises and structure as well as some code snippets in this project are his.
-All other code is written by Lukas Welzel.
+All other code is written by Lukas Welzel and other students.
 
 ## Project status
 Active until summer 2022

@@ -4,6 +4,7 @@ from md_simulation_class import MolDyn
 from argon_class import Argon
 import static_plotting
 
+# Wrapper function for pretty printing and testing with single runs
 
 def set_up_simulation(n_particles=3 ** 3 * 4, n_dim=3, n_steps=510,
                       time_total=0.49e0, initial_timestep=2.e-3,

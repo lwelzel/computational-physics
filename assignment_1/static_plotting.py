@@ -12,6 +12,9 @@ import pathos.multiprocessing as mp
 from astropy.stats import histogram
 from astropy.visualization import hist
 
+# These are various functions to plot and read data
+# They do what it says on the box
+
 
 def read_npy_data(loc, ):
     """
@@ -234,47 +237,56 @@ def mpl_strict_2d_static(pos, header):
     return
 
 
-def get_pressure(path="simulation_data", string="den=1e+00_temp=5e-01"):
-    files = Path(path).rglob(f"*{string}*.h5")
-    files = np.array([path for path in files]).flatten()
-    n_part = 108
-    dpoints = np.sum(np.triu(np.ones((n_part, n_part)), k=1))
-    corr_array = np.zeros((len(files), int(dpoints)))
-
-    header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
-
-    box_length = header["box_length"]
-    n_dim = header["n_dim"]
-    n_particles = header["n_particles"]
-    T = header["temperature"]
-    rho = header["density"]
-    volume = box_length ** n_dim
-    box = SimBox(box_length, n_dim)
-
-    n_cores = int(mp.cpu_count() * 0.8)
-    pool = mp.Pool(n_cores)
-
-    for i, file in enumerate(files):
-        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
-        print(pressure)
-        pressure_terms = 0.5 ** 2 * pressure
-        avg_pressure = T * rho - 1 / (3 * n_particles * T) * np.mean(pressure_terms)
-        pressures = T * rho - rho / (3 * n_particles * T) * (pressure_terms)
-        break
-
-
-
+def get_pressure(path="simulation_data\long_sims", string="den=3e-01_temp=3e+00"):
     fig, ax = plt.subplots(nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(7, 5))
+    for string, name in zip(["den=3e-01_temp=3e+00", "den=8e-01_temp=1e+00", "den=1e+00_temp=5e-01"],
+                            ["Gas", "Liquid", "Solid"]):
+        files = Path(path).rglob(f"*{string}*.h5")
+        files = np.array([path for path in files]).flatten()
+        n_part = 108
+
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
+
+        corr_array = np.zeros((len(files), len(pressure)))
+
+        box_length = header["box_length"]
+        n_dim = header["n_dim"]
+        n_particles = header["n_particles"]
+        T = header["temperature"]
+        rho = header["density"]
+        volume = box_length ** n_dim
+        box = SimBox(box_length, n_dim)
+
+        n_cores = int(mp.cpu_count() * 0.8)
+        pool = mp.Pool(n_cores)
 
 
 
-    ax.plot(pressures, c="black")
-    ax.set_xlabel(r'$step$ [-]')
-    ax.set_ylabel(r'$P$ [-]')
-    ax.set_ylim(0, 2)
-    ax.set_title('Pressure vs. Time (Average Pressure = {:.3f})'.format(avg_pressure))
+        for i, file in enumerate(files):
+            header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+            pressure_terms = 0.5 * pressure
+            avg_pressure = T * rho - 1 / (3 * n_particles * T) * np.mean(pressure_terms)
+            pressures = T * rho - rho / (3 * n_particles * T) * (pressure_terms)
+            # ax.plot(header["timestep"] * np.arange(len(pressures)), pressures)
+            corr_array[i] = pressures
+
+        corr_array_mean = np.mean(corr_array, axis=0)
+        errors = np.std(corr_array, axis=0)
+        ax.plot(header["timestep"] * np.arange(len(corr_array_mean)), corr_array_mean,
+                label=name)
+
+        ax.fill_between(header["timestep"] * np.arange(len(corr_array_mean)),
+                        corr_array_mean + errors * 6,
+                        corr_array_mean - errors * 6,
+                        label=r"$6\sigma$ CI " + name,
+                        alpha=0.3)
+
+    ax.set_xlabel(r'$time$ [-]')
+    ax.set_ylabel(r'$\frac{P}{k_B T \rho}$ [-]')
+    ax.legend()
+    ax.set_title('Pressure vs. Time')
     plt.show()
     return
 
@@ -439,14 +451,6 @@ def mpl_plot_energy_cons(header, kinetic_energy, potential_energy):
     ax.plot(kinetic_energy[np.nonzero(kinetic_energy)] / header["target_kinetic_energy"],
             label=r'$E_{kin} / E_{kin, ~target}$ [-]', ls="dashed")
     ax.plot(np.abs(tot_energy / tot_energy[0]), label=r'$|E_{tot}/E_{pot}(0)|$ [-]', ls="solid")
-    # ax.axhline(header["target_kinetic_energy"]/header["target_kinetic_energy"], label=r"$E_{kin, ~target} / E_{kin, ~target}$", c="gray", ls="dashed")
-
-    # ax.plot(potential_energy[np.nonzero(kinetic_energy)],
-    #         label=r'|$E_{pot}/E_{pot}(0)|$ [-]', ls="dotted")
-    # ax.plot(kinetic_energy[np.nonzero(kinetic_energy)],
-    #         label=r'$E_{kin} / E_{kin, ~target}$ [-]', ls="dashed")
-    # ax.plot(tot_energy, label=r'$|E_{tot}/E_{pot}(0)|$ [-]', ls="solid")
-    # ax.axhline(header["target_kinetic_energy"], label=r"$E_{kin, ~target} / E_{kin, ~target}$", c="gray", ls="dashed")
 
     ax.set_xlabel(r'$step$ [-]')
     ax.set_ylabel(r'Energy [-]')
@@ -457,6 +461,134 @@ def mpl_plot_energy_cons(header, kinetic_energy, potential_energy):
 
     return
 
+def energy_all(path="simulation_data\long_sims", string="den=3e-01_temp=3e+00"):
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(11, 7))
+
+    # ax.set_yscale("symlog")
+    for string, name, color in zip(["den=3e-01_temp=3e+00", "den=8e-01_temp=1e+00", "den=1e+00_temp=5e-01"],
+                            ["Gas", "Liquid", "Solid"],
+                                   ["b", "orange", "green"]):
+        files = Path(path).rglob(f"*{string}*.h5")
+        files = np.array([path for path in files]).flatten()
+        n_part = 108
+
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
+
+        corr_array = np.zeros((len(files), len(kinetic_energy[np.nonzero(kinetic_energy)])))
+
+        box_length = header["box_length"]
+        n_dim = header["n_dim"]
+        n_particles = header["n_particles"]
+        T = header["temperature"]
+        rho = header["density"]
+        volume = box_length ** n_dim
+        box = SimBox(box_length, n_dim)
+
+        n_cores = int(mp.cpu_count() * 0.8)
+        pool = mp.Pool(n_cores)
+
+
+
+        for i, file in enumerate(files):
+            header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+
+            # tot_energy = kinetic_energy[np.nonzero(kinetic_energy)] + potential_energy[np.nonzero(kinetic_energy)]
+            # ax.plot(
+            #     np.abs(potential_energy[np.nonzero(kinetic_energy)] / potential_energy[np.nonzero(kinetic_energy)][0]),
+            #     label=r'|$E_{pot}/E_{pot}(0)|$ [-]', ls="dotted")
+            # ax.plot(kinetic_energy[np.nonzero(kinetic_energy)] / header["target_kinetic_energy"],  ls="dashed")
+            # ax.plot(np.abs(tot_energy / tot_energy[0]), label=r'$|E_{tot}/E_{pot}(0)|$ [-]', ls="solid")
+
+            corr_array[i] = kinetic_energy[np.nonzero(kinetic_energy)]
+
+        corr_array_mean = np.mean(corr_array, axis=0)
+        errors = np.std(corr_array, axis=0)
+        ax.plot(header["timestep"] * np.arange(len(corr_array_mean)), corr_array_mean,
+                label=name)
+
+        ax.fill_between(header["timestep"] * np.arange(len(corr_array_mean)),
+                        corr_array_mean + errors * 6,
+                        corr_array_mean - errors * 6,
+                        label=r"$6\sigma$ CI " + name,
+                        alpha=0.2)
+
+        ax.axhline(header["target_kinetic_energy"], color=color, ls="dashed", label=r"$E_{kin, ~ target}$")
+
+    ax.set_xlabel(r'$time$ [-]')
+    ax.set_ylabel(r'$E_{kin}$ [-]')
+    ax.legend()
+    fig.suptitle(f'Kinetic Energy Conservation')
+    ax.set_title(f'Runs: {len(files)} | Total Time: {len(files) * header["time_total"]} | Particles: {header["n_particles"]}',
+                 fontsize=10)
+
+    plt.show()
+    return
+
+def energy_all_total(path="simulation_data\long_sims", string="den=3e-01_temp=3e+00"):
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(11, 7))
+    ax.axhline(1, color="black", ls="dotted", label=r"$E_{total, ~ initial}$", linewidth=0.75)
+
+    # ax.set_yscale("symlog")
+    ci = 2
+    for string, name, color in zip(["den=3e-01_temp=3e+00", "den=8e-01_temp=1e+00", "den=1e+00_temp=5e-01"],
+                            ["Gas", "Liquid", "Solid"],
+                                   ["b", "orange", "green"]):
+        files = Path(path).rglob(f"*{string}*.h5")
+        files = np.array([path for path in files]).flatten()
+        n_part = 108
+
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[0])
+
+        corr_array = np.zeros((len(files), len(kinetic_energy[np.nonzero(kinetic_energy)])))
+
+        box_length = header["box_length"]
+        n_dim = header["n_dim"]
+        n_particles = header["n_particles"]
+        T = header["temperature"]
+        rho = header["density"]
+        volume = box_length ** n_dim
+        box = SimBox(box_length, n_dim)
+
+        n_cores = int(mp.cpu_count() * 0.8)
+        pool = mp.Pool(n_cores)
+
+
+
+        for i, file in enumerate(files):
+            header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+
+            tot_energy = kinetic_energy[np.nonzero(kinetic_energy)] + potential_energy[np.nonzero(kinetic_energy)]
+
+
+            corr_array[i] = tot_energy / tot_energy[0]
+
+        corr_array_mean = np.mean(corr_array, axis=0)
+        errors = np.std(corr_array, axis=0)
+        ax.plot(header["timestep"] * np.arange(len(corr_array_mean)), corr_array_mean,
+                label=name)
+
+
+        ax.fill_between(header["timestep"] * np.arange(len(corr_array_mean)),
+                        corr_array_mean + errors * ci,
+                        corr_array_mean - errors * ci,
+                        label=f"{ci}"r"$\sigma$ CI " + name,
+                        alpha=0.2)
+        ci *= 3
+
+
+    ax.set_xlabel(r'$time$ [-]')
+    ax.set_ylabel(r'$E_{total}$ [-]')
+    ax.legend()
+    fig.suptitle(f'Total Energy Conservation')
+    ax.set_title(f'Runs: {len(files)} | Total Time: {len(files) * header["time_total"]} | Particles: {header["n_particles"]}',
+                 fontsize=10)
+
+    plt.show()
+    return
 
 def plot_lj():
     import matplotlib.pyplot as plt
@@ -503,21 +635,20 @@ def plot_lj():
 
 
 def main():
-    # files = Path("simulation_data").rglob("*.h5")
-    # files = np.array([path for path in files]).flatten()
-    # # for file in np.flip(files):
-    # for file in files:
-    #     print(file)
-    #     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
-    #     plotly_3d_static(pos, vel, header)
-    #     mpl_plot_pair_corr(header, pos)
-    #     mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
-    #     mpl_plot_pressure(pressure, header)
-    #     break
-
     # plot_lj()
     # get_pressure()
-    get_corr()
+    # get_corr()
+    # energy_all()
+    energy_all_total()
+
+    # ["den=3e-01_temp=3e+00", "den=8e-01_temp=1e+00", "den=1e+00_temp=5e-01"]
+    # files = Path("simulation_data\long_sims").rglob(f"*{'den=1e+00_temp=5e-01'}*.h5")
+    # files = np.array([path for path in files]).flatten()
+    #
+    # header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[4])
+    # mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+
+
 
 
 if __name__ == "__main__":

@@ -2,6 +2,8 @@ import numpy as np
 import pathos.multiprocessing as mp
 from md_simulation_func import main
 
+# Wrapper function for running many simulations
+
 # """
 # conda activate compphys
 # cd C:\Users\lukas\Documents\Git\computational-physics\assignment_1
@@ -24,16 +26,22 @@ def gen_many_runs():
 
     n_particles = 3 ** 3 * 4 * np.ones(n_runs).astype(int)
     n_dim = 3 * np.ones(n_runs).astype(int)
-    n_steps = 2510 * np.ones(n_runs).astype(int)
-    time_total = 5.e0 * np.ones(n_runs)
+    n_steps = 260 * np.ones(n_runs).astype(int)
+    time_total = 0.5e0 * np.ones(n_runs)
     initial_timestep = 2.e-3 * np.ones(n_runs)
     max_steps = 1e6 * np.ones(n_runs).astype(int)
     max_real_time = 3 * 60 * np.ones(n_runs)
+
+
     density = np.repeat([1.2, 0.8, 0.3], n_runs_per_it)
     temperature = np.repeat([0.5, 1., 3.], n_runs_per_it)
 
+    # density = np.array([0.3, 0.8, 1.2])
+    # temperature = np.linspace(0.5, 50., n_runs_per_it)
+    #
+    # dd, tt = np.meshgrid(density, temperature)
+    # temperature, density = tt.flatten(), dd.flatten()
 
-    
 
     id = np.arange(0, n_runs)
 

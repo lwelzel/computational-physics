@@ -145,12 +145,8 @@ class MolDyn(object):
         self.box_r = np.array([])
         self.box2 = np.array([])
         self.box2_r = np.array([])
-        # stepping
-        # TODO: put simulation stuff in its own class - but *think* first!
-        #  issues:
-        #  - keeping track of instances
-        #  - instances referring to simulation para
 
+        # stepping
         self.sim_running = False
         self.current_step = 0  # needs to be increased each step by calling .tick() on the class
         self.current_step_total = 0
@@ -163,7 +159,6 @@ class MolDyn(object):
         self.bk = Constants.bk
 
         # STATISTICAL PROPERTIES
-        # TODO: implement way to update (some)
         self.scale_velocity = np.ones(self.n_steps)
         self.temperature = np.zeros(self.n_steps)
         self.kinetic_energy = np.zeros(self.n_steps)
@@ -222,6 +217,7 @@ class MolDyn(object):
         
         self.setup_mic()
 
+        # set initial properties
         for i, element in enumerate(args):
             species, n_particles, initial_positions, initial_velocities, initial_acc = element
             self.__species__[i] = species
@@ -370,6 +366,7 @@ class MolDyn(object):
         Moves the simulation forward by one step
         :return:
         """
+        # redo the SOI every ten steps
         if self.current_step % 10 == 0:
             self.set_global_mask()
 
@@ -465,12 +462,10 @@ class MolDyn(object):
 
     def normalize_problem(self):
         """
-        Bad name
         Normalize parameters of simulation based on
-                                https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
+        https://en.wikipedia.org/wiki/Lennard-Jones_potential#Dimensionless_(reduced_units)
         :sets: normalized parameters
         """
-
         for particle in self.instances:
             particle.normalize_particle()
 
@@ -486,6 +481,10 @@ class MolDyn(object):
             particle.set_resulting_force()
 
     def get_ekin(self):
+        """
+        This function calculates kinetic energy of the system at the current step
+        :return:
+        """
         # TODO: Use einsteinsum notation for speeeed
         # np.einsum('ij,ij->j',
         #           particle.vel[self.current_step],
@@ -495,9 +494,19 @@ class MolDyn(object):
 
     @staticmethod
     def sine_curve(x, a, b, c, d):
+        """
+        Arbitrary sine function wrapper for fitting
+        """
         return a * np.sin(b * x + c) + d
 
     def rescale_velocity(self, rescale=None):
+        """
+        Rescales the velocity of the system and estimates how good the relaxations state is.
+        It relies on extrapolating the systems kinetic energy to get the bounds
+        within which the final equilibrium kinetic energy is
+        :param rescale:
+        :return:
+        """
         try:
             step_last_relaxation_dip = argrelextrema(self.kinetic_energy[:self.current_step], np.less)[0][-1]
             step_last_relaxation_peak = argrelextrema(self.kinetic_energy[:self.current_step], np.greater)[0][-1]
@@ -548,6 +557,7 @@ class MolDyn(object):
 
         self.i_scale += 1
 
+        # some plotting for the relaxation
         if self.plot_which[0]:
             if self.plot_init[0]:
                 fig, ax = plt.subplots(nrows=1, ncols=1,
@@ -591,6 +601,14 @@ class MolDyn(object):
         return scale
 
     def lap_sim(self, scaling_lap=False, scale=np.nan):
+        """
+        Resets the system in preperation for doing another lap.
+        This makes it possible to run very large simulations with little RAM
+        since it save the progress to the disk every so often
+        :param scaling_lap: True if the simulation proper hasnt started yet
+        :param scale: The current scaling that has been applied
+        :return:
+        """
         if scaling_lap:
             for particle in self.instances:
                 particle.reset_scaling_lap()
@@ -617,6 +635,17 @@ class MolDyn(object):
             particle.set_resulting_force()
 
     def set_global_mask(self):
+        """
+        I love this one
+        Sets the global mask for the particle system that is used for the pairwise interactions.
+        This is done by calculating the absolute distances between all particles and setting the mask
+        to 1 if the absolute distance is greater than the set cut-off.
+        With the mask, we can exclude interactions between particles that are
+        too far away from each other to interact in a significant way.
+        Note that this is only done for the upper triangle of the global mask matrix.
+        This is because the force and potential is symmetric
+        :return:
+        """
         self.__global_mask__ = (self.lj_cut_off + 1.) * np.ones((self.n_particles, self.n_particles))
         for i, part1 in enumerate(self.instances):
             for j, part2 in enumerate(self.instances):
@@ -650,6 +679,19 @@ class MolDyn(object):
 
     @staticmethod
     def get_force_potential(pos1, pos2, box2_r, box):
+        """
+        Calculates the Lennard-Jones potential and force between two particles in a 3 tourus. This can be jitted
+
+        Parameters:
+        pos1 (ndarray): an array of shape (N,3) containing the coordinates of the first particle
+        pos2 (ndarray): an array of shape (M,3) containing the coordinates of the second particle
+        box2_r (ndarray): an array of shape (M,3) containing the reciprocal of the half box dimensions
+        box (ndarray): an array of shape (3,) containing the box dimensions
+
+        Returns:
+        force (ndarray): an array of shape (N,M,3) containing the forces on the first particles, due to their interaction with the other particles
+        potential (ndarray): an array of shape (N,M) containing the potential energy of the first particles, due to their interaction with the other particles
+        """
         dpos = pos1 - pos2
         k = (dpos * box2_r).astype(int)  # this casts the result to int, finding in where the closest box is
         dpos = dpos - k * box  # casting back to float must be explicit
