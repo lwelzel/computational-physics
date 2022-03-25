@@ -11,6 +11,7 @@ from static_utils import SimBox
 import pathos.multiprocessing as mp
 from astropy.stats import histogram
 from astropy.visualization import hist
+from scipy.interpolate import griddata
 
 # These are various functions to plot and read data
 # They do what it says on the box
@@ -633,20 +634,162 @@ def plot_lj():
     fig.suptitle(f'LJ-Potential & Force', fontsize=20, weight="bold")
     plt.show()
 
+def massive_plot(path="simulation_data\massive_para_sweep"):
+    files = Path(path).rglob(f"*.h5")
+    files = np.array([path for path in files]).flatten()
+    n_part = 108
+
+    temperatures = np.zeros(len(files))
+    densities = np.zeros(len(files))
+
+    median_nonzeros = np.zeros(len(files))
+
+
+    n_cores = int(mp.cpu_count() * 0.8)
+    pool = mp.Pool(n_cores)
+
+    # for i, file in enumerate(files):
+    #     # print(i, " of ", len(files))
+    #     header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+    #     temperatures[i] = header["temperature"]
+    #     densities[i] = header["density"]
+    #
+    #     box_length = header["box_length"]
+    #     n_dim = header["n_dim"]
+    #     n_particles = header["n_particles"]
+    #     volume = box_length ** n_dim
+    #     box = SimBox(box_length, n_dim)
+    #
+    #     pos = np.squeeze(pos[:, -1::])
+    #     comb_idx = np.transpose(np.triu_indices(len(pos), 1))
+    #     pos_pairs = pos[comb_idx]
+    #     pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
+    #
+    #     dist = np.array([box.get_distance_absoluteA1(pos_pair) for pos_pair in pos_pairs])
+    #     pool.close()
+    #     pool.join()
+    #     dist = np.array(dist)
+    #
+    #     corr_array = dist.flatten()
+    #
+    #     bin_width = 0.01
+    #     bins = np.arange(0.5, header["box_length"], bin_width)
+    #
+    #     hist, bin_edges = histogram(corr_array, bins=bins)
+    #
+    #     hist = 2 * volume / (n_particles * (n_particles - 1)) \
+    #            * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
+    #            * hist
+    #
+    #     median_nonzeros[i] = 1 / np.abs(1 - np.median(hist[np.nonzero(hist)]))
+
+    def get_gassyness(file):
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+        temperature = header["temperature"]
+        density = header["density"]
+
+        box_length = header["box_length"]
+        n_dim = header["n_dim"]
+        n_particles = header["n_particles"]
+        volume = box_length ** n_dim
+        box = SimBox(box_length, n_dim)
+
+        pos = np.squeeze(pos[:, -1::])
+        comb_idx = np.transpose(np.triu_indices(len(pos), 1))
+        pos_pairs = pos[comb_idx]
+        pos_pairs = np.reshape(pos_pairs, (*pos_pairs.shape, 1))
+
+        dist = np.array([box.get_distance_absoluteA1(pos_pair) for pos_pair in pos_pairs])
+        dist = np.array(dist)
+
+        corr_array = dist.flatten()
+
+        bin_width = 0.01
+        bins = np.arange(0.5, header["box_length"], bin_width)
+
+        hist, bin_edges = histogram(corr_array, bins=bins)
+
+        hist = 2 * volume / (n_particles * (n_particles - 1)) \
+               * 1 / (4 * np.pi * np.square(bin_edges[:-1]) * (bin_edges[1:] - bin_edges[:-1])) \
+               * hist
+
+        median_nonzero = 1 / np.median(hist[np.nonzero(hist)])
+
+        return temperature, density, median_nonzero, temperature * density * (1 - 1 / (3 * n_particles * temperature) * np.mean(0.5 * pressure))
+
+    res = pool.map(get_gassyness, files)
+    res = np.array(res)
+
+    temperatures, densities, median_nonzeros, pressure = res.T
+
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 9))
+
+    ti = np.linspace(temperatures.min(), temperatures.max(), 1000)
+    di = np.linspace(densities.min(), densities.max(), 1000)
+
+    zi = griddata((temperatures, densities), median_nonzeros, (ti[None,:], di[:,None]), method='cubic')
+
+
+    CS = plt.contourf(ti, di, zi, 15, cmap=plt.cm.viridis,
+                      vmax=None, vmin=None)
+    plt.colorbar(CS, label="Gassy-ness [-]")
+
+    ax.set_xlabel(r'$T$ [-]')
+    ax.set_ylabel(r'$\rho$ [-]')
+    ax.set_title(f'Where do we find gas?')
+    plt.show()
+
+
+
+
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 9))
+
+    ti = np.linspace(temperatures.min(), temperatures.max(), 1000)
+    di = np.linspace(densities.min(), densities.max(), 1000)
+
+    zi = griddata((temperatures, densities), pressure, (ti[None, :], di[:, None]), method='cubic')
+
+    CS = plt.contourf(ti, di, zi, 15, cmap=plt.cm.viridis,
+                      vmax=None, vmin=None)
+    plt.colorbar(CS, label=r'$\frac{P}{k_B T \rho}$ [-]')
+
+    ax.set_xlabel(r'$T$ [-]')
+    ax.set_ylabel(r'$\rho$ [-]')
+    ax.set_title(f'Where do we find gas?')
+    plt.show()
+
+    pool.close()
+    pool.join()
+
+
+
 
 def main():
-    # plot_lj()
-    # get_pressure()
-    # get_corr()
-    # energy_all()
-    energy_all_total()
+    try:
+        plot_lj()
 
-    # ["den=3e-01_temp=3e+00", "den=8e-01_temp=1e+00", "den=1e+00_temp=5e-01"]
-    # files = Path("simulation_data\long_sims").rglob(f"*{'den=1e+00_temp=5e-01'}*.h5")
-    # files = np.array([path for path in files]).flatten()
-    #
-    # header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(files[4])
-    # mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+        # ["den=3e-01_temp=3e+00", "den=8e-01_temp=1e+00", "den=1e+00_temp=5e-01"]
+        files = Path("simulation_data").rglob(f"*.h5")
+        file = np.array([path for path in files]).flatten()[0]
+        print(f"Showing example plots for {file}")
+        header, pos, vel, pressure, potential_energy, kinetic_energy = read_h5_data(file)
+        plotly_3d_static(pos, vel, header)
+        mpl_plot_energy_cons(header, kinetic_energy, potential_energy)
+
+        get_pressure()
+        get_corr()
+        energy_all()
+        energy_all_total()
+
+        massive_plot()
+
+    except BaseException:
+        print("I dont make any other plots right now.\n"
+              "This might be because I cant find any saved runs.")
 
 
 

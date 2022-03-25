@@ -3,6 +3,13 @@ This project simulates Argon Molecular Dynamics
 
 # Read Me:
 ## Use:
+TLDR:
+1. Do the normal stuff you would do for a project, .yml files are in the same folder as the readme
+2. I recommend to run md_simulation_func.py for a test run.
+   1. Plotting might throw some errors depending if you have run enough simulations to extract statistical information
+   2. But then you can always run many_sim_wrapper.py if you want to melt some cpus and simulate many runs
+
+
 ### Preparation
 1. Set up environment using requirements.txt and environment.yml files. This might be multiple files.
 2. Verify that the correct modules and dependencies are installed
@@ -18,9 +25,10 @@ This project simulates Argon Molecular Dynamics
       4. Generally, the demons will try to finish their work (at least save at next savepoint) before allowing you to stop
    2. md_simulation_func.py can be used to run a single simulation. Enable progress print statements in the class MolDyn to see what the simulation is doing
 3. Run chosen file or method in the console
-   1. This may take a while. 
+   1. This may take a while. On my PC:
       1. 100 particles will take seconds to minutes depending on the initial state and number of steps
       2. 1000 particles will take minutes. The program scales between O(n) to O(n(n/2)) interactions per timestep for n particles
+      3. running 36 * 3 simulations with 108 particles in parallel for 2500 steps (5. time units) took 10ish minutes. Most of that was spent on relaxing gases
    2. Progress should be shown
    3. The program will save progress intermediately, especially for long runs
       1. The program will not save un-relaxed states

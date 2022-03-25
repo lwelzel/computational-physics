@@ -91,7 +91,7 @@ class MolDyn(object):
         self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_part={n_particles}_id={id}.h5"
         Path(self.dir_location).mkdir(parents=True, exist_ok=True)
         self.file_location = Path(file_location) / self.name
-        # print(f"Run will be saved to: {self.file_location}")
+        print(f"Run will be saved to: {self.file_location}")
         self.file = h5py.File(self.file_location, "w")
         self.__h5_position_name__ = "position"
         self.__h5_velocity_name__ = "velocity"
@@ -247,14 +247,14 @@ class MolDyn(object):
 
         self.setup_mic()
         self.normalize_problem()
-        #print('Normalization complete.')
+        print('Normalization complete.')
 
         # rescale the problem until relaxed
         rescale = np.inf
 
-        # print(f"Rescaling problem...\n"
-        #       f"\tAcceptable relative error in kinetic energies: {self.relaxation_threshold:.2e}\n"
-        #       f"\tTaking {self.relaxation_steps} steps for each relaxation run.")
+        print(f"Rescaling problem...\n"
+              f"\tAcceptable relative error in kinetic energies: {self.relaxation_threshold:.2e}\n"
+              f"\tTaking {self.relaxation_steps} steps for each relaxation run.")
         i_r = 0
         while not np.allclose(rescale, 1., rtol=0., atol=self.relaxation_threshold):
             for __ in np.arange(self.relaxation_steps):
@@ -281,7 +281,7 @@ class MolDyn(object):
                 self.relaxed = False
                 break
 
-        #print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
+        print(f"\tActual relative error in kinetic energies: {np.abs(rescale - 1.):.2e}")
 
         ### save simulation data to h5 file
         meta_dict = {"n_particles": self.n_particles,
@@ -349,7 +349,7 @@ class MolDyn(object):
                     f"\t\tRemaining simulation time: {timedelta(seconds=self.get_real_time(self.time_total - self.time))} " \
                     f"({self.time / self.time_total:.1f}% completed)\n"
             except AssertionError as e:
-                # print(e)
+                print(e)
                 self.sim_running = False
                 break
             finally:
@@ -359,7 +359,7 @@ class MolDyn(object):
 
         self.file.close()
         plt.close('all')
-        #print(f"Done.\n\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
+        print(f"Done.\n\t Total runtime: {timedelta(seconds=perf_counter() - self.start_system_time)}")
     
     def tick(self):
         """
@@ -551,7 +551,7 @@ class MolDyn(object):
                 and (self.i_scale >= 2))
                 and (self.state != "gaseous")):
             self.scale *= np.mean(self.scale_tracker[1:])
-            #print(f"\tDetecting oscillation in rescaling, converge to mean. (i = {self.i_scale})")
+            print(f"\tDetecting oscillation in rescaling, converge to mean. (i = {self.i_scale})")
         else:
             self.scale *= scale
 
@@ -597,7 +597,7 @@ class MolDyn(object):
                 ax.axvline(start, ls="dotted", c="magenta", alpha=alpha)
                 ax.axvline(stop, ls="dashed", c="pink", alpha=alpha)
 
-        #print(f"\t\tRescaling:\tlambda: {self.scale :.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
+        print(f"\t\tRescaling:\tlambda: {self.scale :.5e}\ttarget Ekin: {self.target_kinetic_energy:.2e}\tEkin: {ekin:.2e}")
         return scale
 
     def lap_sim(self, scaling_lap=False, scale=np.nan):
